@@ -1,0 +1,14 @@
+*.orig
+*.filters
+*.sln
+*.xcodeproj
+*.db
+*.opendb
+*.tlog
+*.lastbuild
+*.suo
+*.spv
+Debug/
+Release/
+Libraries/
+build
