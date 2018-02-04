@@ -1,6 +1,9 @@
 #include "glad\glad.h"
 #include "GLFW\glfw3.h"
 #include "glm\glm.hpp"
+
+#include "ShaderProgram.h"
+
 #include <iostream>
 #include <vector>
 #include <random>
@@ -23,6 +26,7 @@ private:
     glm::vec3 point; // Point in world space
     float influenceDist; // Radius of sphere of influence
     int parentIdx;
+
 public:
     TreeNode(const glm::vec3& p, const float& d, const int& i) : point(p), influenceDist(d), parentIdx(i) {}
     ~TreeNode() {}
@@ -41,6 +45,7 @@ class AttractorPoint {
 private:
     glm::vec3 point; // Point in world space
     float killDist; // Radius for removal
+
 public:
     AttractorPoint(const glm::vec3& p, const float& d) : point(p), killDist(d) {}
     ~AttractorPoint() {}
@@ -60,8 +65,7 @@ int main() {
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     GLFWwindow* window = glfwCreateWindow(800, 600, "Trees", NULL, NULL);
-    if (window == NULL)
-    {
+    if (window == NULL) {
         std::cout << "Failed to create GLFW window" << std::endl;
         glfwTerminate();
         return -1;
@@ -69,8 +73,7 @@ int main() {
     glfwMakeContextCurrent(window);
 
     // Initialize Glad
-    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
-    {
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
         std::cout << "Failed to initialize GLAD" << std::endl;
         return -1;
     }
@@ -81,24 +84,6 @@ int main() {
     // Test loop vectorization. Note: using the compiler flags, this stuff only seems to compile in Release Mode
     // Needed flags: /O2 /Qvec-report:1 (can also use report:2)
     // Source: https://software.intel.com/en-us/articles/a-guide-to-auto-vectorization-with-intel-c-compilers
-
-    // first populate the list
-    /*auto list = std::vector<int>(1000000000, 0);
-    const unsigned int listSize = list.size();
-    for (unsigned int i = 0; i < listSize; ++i) {
-        list[i] = i;
-    }
-
-    // This should vectorize too
-    auto start = std::chrono::system_clock::now();
-    for (unsigned int i = 0; i < listSize; ++i) {
-        list[i] = list[i] + 1;
-    }
-    auto end = std::chrono::system_clock::now();
-
-    std::chrono::duration<double> elapsed_seconds = end - start;
-    std::time_t end_time = std::chrono::system_clock::to_time_t(end);
-    std::cout << "Elapsed time: " << elapsed_seconds.count() << "s\n";*/
 
     // Stores the point positions: currently a list of floats. I need to include glm or eigen
     // Is it faster to initialize a vector of points with # and value and then set the values, or to push_back values onto an empty list
@@ -136,7 +121,7 @@ int main() {
     const float branchLength = 0.1f;
     const float branchInflDist = 0.45f;
     std::vector<TreeNode> treeNodes = std::vector<TreeNode>();
-    treeNodes.emplace_back(TreeNode(glm::vec3(0.0f, 0.0f, 0.0f), branchInflDist, -1));
+    treeNodes.emplace_back(TreeNode(glm::vec3(0.0f, 0.1f, 0.0f), branchInflDist, -1));
     //treeNodes.emplace_back(TreeNode(glm::vec3(-0.1f, 0.0f, 0.0f), branchInflDist, -1));
 
     // Run the tree algorithm
@@ -149,7 +134,8 @@ int main() {
     //for each point
     //  for each tree node
     //    if a tree node is in the kill distance, remove this attractor point
-    const unsigned int numIters = 12;
+
+    const unsigned int numIters = 8;
     int numTreeNodes = treeNodes.size(); // Update the number of tree nodes to run the algorithm on in the for loop
 
     for (unsigned int n = 0; n < numIters && attractorPoints.size() > 0; ++n) { // Run the algorithm a certain number of times, or if there are no attractor points
@@ -183,7 +169,7 @@ int main() {
         while (attrPtIter != attractorPoints.end()) {
             for (unsigned int ti = 0; ti < numTreeNodes; ++ti) { // size does NOT include the newly created tree nodes
                 if (attrPtIter->IsKilledBy(treeNodes[ti].GetPoint())) {
-                    attrPtIter = attractorPoints.erase(attrPtIter); // crash here occasionally
+                    attrPtIter = attractorPoints.erase(attrPtIter); // crash here occasionally *** TODO
                     break;
                 }
             }
@@ -231,83 +217,11 @@ int main() {
             indicesTreeBranch.emplace_back(idxCounter++);
         }
     }
-
-
-    /// First triangle / points
-
-    // Create and compile vert/frag shaders
-
-    // For the AttractorPoints
-    unsigned int vertexShader;
-    vertexShader = glCreateShader(GL_VERTEX_SHADER);
-    const char* vertexShaderSource =
-        "#version 450 core\n\nlayout(location = 0) in vec3 vPos;\nlayout(location = 0) out vec3 fPos;\n\nvoid main() {\nfPos = vPos;\ngl_Position = vec4(vPos * vec3(600.0 / 800.0, 1, 1), 1);\n}";
-                                                                                                                                               // account for aspect ratio...why am i dividing, not multiplying?
-    glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
-    glCompileShader(vertexShader);
-    // Shader compilation success check
-    int  success;
-    char infoLog[512];
-    glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
-    if (!success)
-    {
-        glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
-        std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
-    }
-
-    unsigned int fragmentShader;
-    fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    const char* fragmentShaderSource =  "#version 450 core\n\nlayout(location = 0) in vec3 fPos;\nout vec4 FragColor;\n\nvoid main() {\nFragColor = vec4(vec3(1, 0, 0), 1);\n}";
-    glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
-    glCompileShader(fragmentShader);
-    // Shader compilation success check
-    glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
-    if (!success)
-    {
-        glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
-        std::cout << "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n" << infoLog << std::endl;
-    }
-
-    // Fragment shader for Tree Branches - just draws as green
-    unsigned int fragmentShader2;
-    fragmentShader2 = glCreateShader(GL_FRAGMENT_SHADER);
-    const char* fragmentShaderSource2 = "#version 450 core\n\nlayout(location = 0) in vec3 fPos;\nout vec4 FragColor;\n\nvoid main() {\nFragColor = vec4(abs(fPos), 1);\n}";
-    glShaderSource(fragmentShader2, 1, &fragmentShaderSource2, NULL);
-    glCompileShader(fragmentShader2);
-    // Shader compilation success check
-    glGetShaderiv(fragmentShader2, GL_COMPILE_STATUS, &success);
-    if (!success)
-    {
-        glGetShaderInfoLog(fragmentShader2, 512, NULL, infoLog);
-        std::cout << "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n" << infoLog << std::endl;
-    }
-
-    // Shader Program
-    // For AttractorPoints
-    unsigned int shaderProgram;
-    shaderProgram = glCreateProgram();
-    glAttachShader(shaderProgram, vertexShader);
-    glAttachShader(shaderProgram, fragmentShader);
-    glLinkProgram(shaderProgram);
-    glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
-    if (!success) {
-        glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
-        std::cout << "ERROR::SHADER_PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
-    }
-    // For Tree Branches
-    unsigned int shaderProgram2;
-    shaderProgram2 = glCreateProgram();
-    glAttachShader(shaderProgram2, vertexShader);
-    glAttachShader(shaderProgram2, fragmentShader2);
-    glLinkProgram(shaderProgram2);
-    glGetProgramiv(shaderProgram2, GL_LINK_STATUS, &success);
-    if (!success) {
-        glGetProgramInfoLog(shaderProgram2, 512, NULL, infoLog);
-        std::cout << "ERROR::SHADER_PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
-    }
-    glDeleteShader(vertexShader);
-    glDeleteShader(fragmentShader);
-    glDeleteShader(fragmentShader2);
+    
+    // Gl calls and drawing
+    
+    ShaderProgram sp = ShaderProgram("Shaders/point-vert.vert", "Shaders/point-frag.frag");
+    ShaderProgram sp2 = ShaderProgram("Shaders/treeNode-vert.vert", "Shaders/treeNode-frag.frag");
     
     /// Array/Buffer Objects
     unsigned int VAO, VAO2;
@@ -359,11 +273,11 @@ int main() {
         glClear(GL_COLOR_BUFFER_BIT);
 
         glBindVertexArray(VAO);
-        glUseProgram(shaderProgram);
+        sp.use();
         glDrawElements(GL_POINTS, indices.size(), GL_UNSIGNED_INT, 0);
         
         glBindVertexArray(VAO2);
-        glUseProgram(shaderProgram2);
+        sp2.use();
         glDrawElements(GL_LINES, indicesTreeBranch.size(), GL_UNSIGNED_INT, 0);
 
         // Temporary but draw the tree node points
