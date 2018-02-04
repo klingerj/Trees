@@ -3,6 +3,7 @@
 #include "glm\glm.hpp"
 
 #include "OpenGL/ShaderProgram.h"
+#include "Scene/Mesh.h"
 
 #include <iostream>
 #include <vector>
@@ -60,6 +61,11 @@ public:
 };
 
 int main() {
+
+    // Test Mesh Loading
+    Mesh m = Mesh();
+    m.LoadFromFile("OBJs/cube.obj");
+
     // GLFW Window Setup
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -220,7 +226,7 @@ int main() {
         }
     }
     
-    // Gl calls and drawing
+    // GL calls and drawing
     
     ShaderProgram sp = ShaderProgram("Shaders/point-vert.vert", "Shaders/point-frag.frag");
     ShaderProgram sp2 = ShaderProgram("Shaders/treeNode-vert.vert", "Shaders/treeNode-frag.frag");

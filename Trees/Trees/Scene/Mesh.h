@@ -6,7 +6,7 @@
 struct Vertex {
     glm::vec3 pos;
     glm::vec3 nor;
-    // Note: UVs and colors have to be read with TinyObj, but aren't necessary to draw (for this project)
+    // Note: UVs and colors aren't necessary to draw (for this project)
 };
 
 class Mesh {

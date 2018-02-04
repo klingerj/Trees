@@ -137,6 +137,7 @@
     <ClCompile Include="..\..\Libraries\glad\src\glad.c" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="OpenGL\ShaderProgram.cpp" />
+    <ClCompile Include="Scene\Mesh.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\point-frag.frag" />
@@ -145,6 +146,7 @@
     <None Include="Shaders\treeNode-vert.vert" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Scene\Mesh.h" />
     <ClInclude Include="ShaderProgram.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
