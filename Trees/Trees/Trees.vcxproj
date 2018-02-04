@@ -140,6 +140,8 @@
     <ClCompile Include="Scene\Mesh.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="Shaders\mesh-frag.frag" />
+    <None Include="Shaders\mesh-vert.vert" />
     <None Include="Shaders\point-frag.frag" />
     <None Include="Shaders\point-vert.vert" />
     <None Include="Shaders\treeNode-frag.frag" />

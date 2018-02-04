@@ -38,9 +38,10 @@ void Mesh::LoadFromFile(const char* filepath) {
                 // access to vertex
                 tinyobj::index_t idx = shapes[s].mesh.indices[index_offset + v];
                 Vertex newVert;
-                newVert.pos = { attrib.vertices[3 * idx.vertex_index + 0], attrib.vertices[3 * idx.vertex_index + 1], attrib.vertices[3 * idx.vertex_index + 2] };
-                newVert.nor = { attrib.normals[3 * idx.normal_index + 0], attrib.normals[3 * idx.normal_index + 1], attrib.normals[3 * idx.normal_index + 2] };
+                newVert.pos = { attrib.vertices[3 * idx.vertex_index], attrib.vertices[3 * idx.vertex_index + 1], attrib.vertices[3 * idx.vertex_index + 2] };
+                newVert.nor = { attrib.normals[3 * idx.normal_index], attrib.normals[3 * idx.normal_index + 1], attrib.normals[3 * idx.normal_index + 2] };
                 vertices.emplace_back(newVert);
+                indices.emplace_back(index_offset + v);
                 
                 /*tinyobj::real_t vx = attrib.vertices[3 * idx.vertex_index + 0];
                 tinyobj::real_t vy = attrib.vertices[3 * idx.vertex_index + 1];
@@ -57,4 +58,5 @@ void Mesh::LoadFromFile(const char* filepath) {
             //shapes[s].mesh.material_ids[f];
         }
     }
+    return;
 }

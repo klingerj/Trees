@@ -64,7 +64,7 @@ int main() {
 
     // Test Mesh Loading
     Mesh m = Mesh();
-    m.LoadFromFile("OBJs/cube.obj");
+    m.LoadFromFile("OBJs/plane.obj");
 
     // GLFW Window Setup
     glfwInit();
@@ -230,17 +230,21 @@ int main() {
     
     ShaderProgram sp = ShaderProgram("Shaders/point-vert.vert", "Shaders/point-frag.frag");
     ShaderProgram sp2 = ShaderProgram("Shaders/treeNode-vert.vert", "Shaders/treeNode-frag.frag");
+    ShaderProgram sp3 = ShaderProgram("Shaders/mesh-vert.vert", "Shaders/mesh-frag.frag");
     
     /// Array/Buffer Objects
-    unsigned int VAO, VAO2;
-    unsigned int VBO, VBO2;
-    unsigned int EBO, EBO2;
+    unsigned int VAO, VAO2, VAO3;
+    unsigned int VBO, VBO2, VBO3;
+    unsigned int EBO, EBO2, EBO3;
     glGenVertexArrays(1, &VAO);
     glGenVertexArrays(1, &VAO2);
+    glGenVertexArrays(1, &VAO3);
     glGenBuffers(1, &VBO);
     glGenBuffers(1, &VBO2);
+    glGenBuffers(1, &VBO3);
     glGenBuffers(1, &EBO);
     glGenBuffers(1, &EBO2);
+    glGenBuffers(1, &EBO3);
 
     // VAO Binding
     glBindVertexArray(VAO);
@@ -270,6 +274,34 @@ int main() {
     glEnableVertexAttribArray(0);
     glBindVertexArray(0);
 
+    for (int i = 0; i < m.GetVertices().size(); i++) {
+        std::cout << m.GetVertices()[i].pos.x << m.GetVertices()[i].pos.y << m.GetVertices()[i].pos.z << std::endl;
+        std::cout << m.GetVertices()[i].nor.x << m.GetVertices()[i].nor.y << m.GetVertices()[i].nor.z << std::endl;
+    }
+
+    for (int i = 0; i < m.GetIndices().size(); i++) {
+        std::cout << m.GetIndices()[i] << std::endl;
+    }
+
+    std::vector<unsigned int> idx = m.GetIndices();
+
+    // Mesh buffers
+    glBindVertexArray(VAO3);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO3);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex) * m.GetVertices().size(), m.GetVertices().data(), GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO3);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * idx.size(), idx.data(), GL_STATIC_DRAW);
+    // Attribute linking
+
+    // Positions + Normals
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
+    glEnableVertexAttribArray(0);
+    //glBindVertexArray(0);
+    // Bind the 0th VBO. Set up attribute pointers to location 1 for normals.
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)sizeof(glm::vec3)); // skip the first Vertex.pos
+    glEnableVertexAttribArray(1);
+    glBindVertexArray(0);
+
     glPointSize(2);
     glLineWidth(1);
 
@@ -280,13 +312,17 @@ int main() {
         glClearColor(0.1f, 0.2f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        glBindVertexArray(VAO);
+        /*glBindVertexArray(VAO);
         sp.use();
         glDrawElements(GL_POINTS, indices.size(), GL_UNSIGNED_INT, 0);
         
         glBindVertexArray(VAO2);
         sp2.use();
-        glDrawElements(GL_LINES, indicesTreeBranch.size(), GL_UNSIGNED_INT, 0);
+        glDrawElements(GL_LINES, indicesTreeBranch.size(), GL_UNSIGNED_INT, 0);*/
+
+        glBindVertexArray(VAO3);
+        sp3.use();
+        glDrawElements(GL_TRIANGLES, idx.size(), GL_UNSIGNED_INT, 0);
 
         // Temporary but draw the tree node points
         /*glUseProgram(shaderProgram);
@@ -297,10 +333,14 @@ int main() {
     }
 
     glDeleteVertexArrays(1, &VAO);
+    glDeleteVertexArrays(1, &VAO2);
+    glDeleteVertexArrays(1, &VAO3);
     glDeleteBuffers(1, &VBO);
     glDeleteBuffers(1, &VBO2);
+    glDeleteBuffers(1, &VBO3);
     glDeleteBuffers(1, &EBO);
     glDeleteBuffers(1, &EBO2);
+    glDeleteBuffers(1, &EBO3);
 
     glfwTerminate();
     return 0;
