@@ -136,7 +136,7 @@
   <ItemGroup>
     <ClCompile Include="..\..\Libraries\glad\src\glad.c" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="ShaderProgram.cpp" />
+    <ClCompile Include="OpenGL\ShaderProgram.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\point-frag.frag" />

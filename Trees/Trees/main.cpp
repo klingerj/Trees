@@ -2,7 +2,7 @@
 #include "GLFW\glfw3.h"
 #include "glm\glm.hpp"
 
-#include "ShaderProgram.h"
+#include "OpenGL/ShaderProgram.h"
 
 #include <iostream>
 #include <vector>
