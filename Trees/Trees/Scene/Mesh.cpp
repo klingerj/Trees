@@ -36,12 +36,13 @@ void Mesh::LoadFromFile(const char* filepath) {
             // Loop over vertices in the face.
             for (size_t v = 0; v < fv; ++v) {
                 // access to vertex
-                tinyobj::index_t idx = shapes[s].mesh.indices[index_offset + v];
+                const unsigned int index = index_offset + v;
+                tinyobj::index_t idx = shapes[s].mesh.indices[index];
                 Vertex newVert;
                 newVert.pos = { attrib.vertices[3 * idx.vertex_index], attrib.vertices[3 * idx.vertex_index + 1], attrib.vertices[3 * idx.vertex_index + 2] };
                 newVert.nor = { attrib.normals[3 * idx.normal_index], attrib.normals[3 * idx.normal_index + 1], attrib.normals[3 * idx.normal_index + 2] };
                 vertices.emplace_back(newVert);
-                indices.emplace_back(index_offset + v);
+                indices.emplace_back(index);
                 
                 /*tinyobj::real_t vx = attrib.vertices[3 * idx.vertex_index + 0];
                 tinyobj::real_t vy = attrib.vertices[3 * idx.vertex_index + 1];

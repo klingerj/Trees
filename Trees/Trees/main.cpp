@@ -1,6 +1,7 @@
 #include "glad\glad.h"
 #include "GLFW\glfw3.h"
 #include "glm\glm.hpp"
+#include "pcg_random.hpp"
 
 #include "OpenGL/ShaderProgram.h"
 #include "Scene/Mesh.h"
@@ -61,7 +62,6 @@ public:
 };
 
 int main() {
-
     // Test Mesh Loading
     Mesh m = Mesh();
     m.LoadFromFile("OBJs/plane.obj");
@@ -101,16 +101,24 @@ int main() {
     unsigned int numPointsIncluded = 0;
     std::vector<glm::vec3> points = std::vector<glm::vec3>();
 
-    // Random number generator. source taken from: http://en.cppreference.com/w/cpp/numeric/random/uniform_real_distribution
+    // Using PCG RNG: http://www.pcg-random.org/using-pcg-cpp.html
 
-    std::random_device rd;  // Will be used to obtain a seed for the random number engine
-    std::mt19937 gen(rd()); // Standard mersenne_twister_engine seeded with rd()
-    std::uniform_real_distribution<float> dis(0.0f, 1.0f);
+    // Seed with a real random value, if available
+    //pcg_extras::seed_seq_from<std::random_device> seed_source;
+
+    // Make a random number engine
+    pcg32 rng(101);
+
+    // Testing for seeds that will cause the crash and for ones that don't
+    // Good seed: 100
+    // Bad seed (causes crash): 101
+
+    std::uniform_real_distribution<float> dis(-1.0f, 1.0f);
 
     // Create points
     // Unfortunately, we can't really do any memory preallocating because we don't actually know how many points will be included
     for (unsigned int i = 0; i < numPoints; ++i) {
-        const glm::vec3 p = glm::vec3(dis(gen) * 2.0f - 1.0f, dis(gen) * 2.0f - 1.0f, dis(gen) * 2.0f - 1.0f);
+        const glm::vec3 p = glm::vec3(dis(rng), dis(rng), dis(rng));
         if ((p.x * p.x + p.y * p.y) > 0.2f /*p.y > 0.25f && (p.x * p.x + p.y * p.y) > 0.2f*/) {
             points.emplace_back(p);
             ++numPointsIncluded;
@@ -155,6 +163,7 @@ int main() {
 
             for (unsigned int pi = 0; pi < attractorPoints.size(); ++pi) {
                 const glm::vec3& attrPoint = attractorPoints[pi].GetPoint();
+
                 if (currTreeNode.InfluencesPoint(attrPoint)) {
                     accumDir += attrPoint - currTreeNode.GetPoint();
                     ++numNearbyPoints;
@@ -172,16 +181,22 @@ int main() {
         // Kill attractor points that need to be killed
         // https://stackoverflow.com/questions/347441/erasing-elements-from-a-vector
 
-        std::vector<AttractorPoint>::iterator attrPtIter = attractorPoints.begin();
+        auto attrPtIter = attractorPoints.begin();
 
+        //int i = 0; // count where we are in the loop for when we break
+        bool didRemovePoint = false;
         while (attrPtIter != attractorPoints.end()) {
             for (unsigned int ti = 0; ti < numTreeNodes; ++ti) { // size does NOT include the newly created tree nodes
                 if (attrPtIter->IsKilledBy(treeNodes[ti].GetPoint())) {
                     attrPtIter = attractorPoints.erase(attrPtIter); // crash here occasionally *** TODO
+                    didRemovePoint = true;
                     break;
                 }
             }
-            ++attrPtIter;
+            if (!didRemovePoint) {
+                ++attrPtIter;
+            }
+            didRemovePoint = false;
         }
         //std::cout << "Num points left: " << attractorPoints.size() << std::endl;
         numTreeNodes = treeNodes.size();
@@ -202,7 +217,8 @@ int main() {
     std::cout << "Branch Length: " << branchLength << std::endl;
     std::cout << "Kill Distance: " << killDist << std::endl;
     std::cout << "Node Influence Distance: " << branchInflDist << std::endl;
-    std::cout << "Number of attractor points: " << numPointsIncluded << std::endl;
+    std::cout << "Number of attractor points (initial): " << numPointsIncluded << std::endl;
+    std::cout << "Number of attractor points (final): " << attractorPoints.size() << std::endl;
     std::cout << "Number of Tree Nodes: " << treeNodes.size() << std::endl;
 
     // Create indices for the attractor points
@@ -226,13 +242,13 @@ int main() {
         }
     }
     
-    // GL calls and drawing
+    /// GL calls and drawing
     
     ShaderProgram sp = ShaderProgram("Shaders/point-vert.vert", "Shaders/point-frag.frag");
     ShaderProgram sp2 = ShaderProgram("Shaders/treeNode-vert.vert", "Shaders/treeNode-frag.frag");
     ShaderProgram sp3 = ShaderProgram("Shaders/mesh-vert.vert", "Shaders/mesh-frag.frag");
     
-    /// Array/Buffer Objects
+    // Array/Buffer Objects
     unsigned int VAO, VAO2, VAO3;
     unsigned int VBO, VBO2, VBO3;
     unsigned int EBO, EBO2, EBO3;
@@ -252,11 +268,22 @@ int main() {
     // VBO Binding
     // Points
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * numPointsIncluded, points.data(), GL_STATIC_DRAW);
+    std::vector<glm::vec3> tempPts = std::vector<glm::vec3>();
+    tempPts.reserve(attractorPoints.size());
+    for (int i = 0; i < attractorPoints.size(); ++i) {
+        tempPts.emplace_back(attractorPoints[i].GetPoint());
+    }
+    std::vector<unsigned int> tempPtsIdx = std::vector<unsigned int>();
+    tempPtsIdx.reserve(attractorPoints.size());
+    for (int i = 0; i < attractorPoints.size(); ++i) {
+        tempPtsIdx.emplace_back(i);
+;
+    }
+    glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * tempPts.size(), tempPts.data(), GL_STATIC_DRAW);
     // EBO Binding
     // Points
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * indices.size(), indices.data(), GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * tempPtsIdx.size(), tempPtsIdx.data(), GL_STATIC_DRAW);
     // Attribute linking
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
     glEnableVertexAttribArray(0);
@@ -273,15 +300,15 @@ int main() {
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
     glEnableVertexAttribArray(0);
     glBindVertexArray(0);
-
-    for (int i = 0; i < m.GetVertices().size(); i++) {
+    
+    /*for (int i = 0; i < m.GetVertices().size(); i++) {
         std::cout << m.GetVertices()[i].pos.x << m.GetVertices()[i].pos.y << m.GetVertices()[i].pos.z << std::endl;
         std::cout << m.GetVertices()[i].nor.x << m.GetVertices()[i].nor.y << m.GetVertices()[i].nor.z << std::endl;
     }
 
     for (int i = 0; i < m.GetIndices().size(); i++) {
         std::cout << m.GetIndices()[i] << std::endl;
-    }
+    }*/
 
     std::vector<unsigned int> idx = m.GetIndices();
 
@@ -296,7 +323,6 @@ int main() {
     // Positions + Normals
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
     glEnableVertexAttribArray(0);
-    //glBindVertexArray(0);
     // Bind the 0th VBO. Set up attribute pointers to location 1 for normals.
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)sizeof(glm::vec3)); // skip the first Vertex.pos
     glEnableVertexAttribArray(1);
@@ -312,21 +338,17 @@ int main() {
         glClearColor(0.1f, 0.2f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        /*glBindVertexArray(VAO);
+        glBindVertexArray(VAO);
         sp.use();
-        glDrawElements(GL_POINTS, indices.size(), GL_UNSIGNED_INT, 0);
+        glDrawElements(GL_POINTS, tempPtsIdx.size(), GL_UNSIGNED_INT, 0);
         
         glBindVertexArray(VAO2);
         sp2.use();
-        glDrawElements(GL_LINES, indicesTreeBranch.size(), GL_UNSIGNED_INT, 0);*/
+        glDrawElements(GL_LINES, indicesTreeBranch.size(), GL_UNSIGNED_INT, 0);
 
-        glBindVertexArray(VAO3);
+        /*glBindVertexArray(VAO3);
         sp3.use();
-        glDrawElements(GL_TRIANGLES, idx.size(), GL_UNSIGNED_INT, 0);
-
-        // Temporary but draw the tree node points
-        /*glUseProgram(shaderProgram);
-        glDrawElements(GL_POINTS, indicesTreeBranch.size(), GL_UNSIGNED_INT, 0);*/
+        glDrawElements(GL_TRIANGLES, idx.size(), GL_UNSIGNED_INT, 0);*/
 
         glfwSwapBuffers(window);
         glfwPollEvents();

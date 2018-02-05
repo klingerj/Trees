@@ -68,17 +68,17 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <IncludePath>$(SolutionDir)..\Libraries\glad\include;$(SolutionDir)..\Libraries\glfw-3.2.1\include;$(SolutionDir)..\Libraries\glm;$(SolutionDir)..\Libraries\tinyobjloader;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)..\Libraries\glad\include;$(SolutionDir)..\Libraries\glfw-3.2.1\include;$(SolutionDir)..\Libraries\glm;$(SolutionDir)..\Libraries\tinyobjloader;$(SolutionDir)..\Libraries\pcg-cpp\include;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <IncludePath>$(SolutionDir)..\Libraries\glad\include;$(SolutionDir)..\Libraries\glfw-3.2.1\include;$(SolutionDir)..\Libraries\glm;$(SolutionDir)..\Libraries\tinyobjloader;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)..\Libraries\glad\include;$(SolutionDir)..\Libraries\glfw-3.2.1\include;$(SolutionDir)..\Libraries\glm;$(SolutionDir)..\Libraries\tinyobjloader;$(SolutionDir)..\Libraries\pcg-cpp\include;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IncludePath>$(SolutionDir)..\Libraries\glad\include;$(SolutionDir)..\Libraries\glfw-3.2.1\include;$(SolutionDir)..\Libraries\glm;$(SolutionDir)..\Libraries\tinyobjloader;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)..\Libraries\glad\include;$(SolutionDir)..\Libraries\glfw-3.2.1\include;$(SolutionDir)..\Libraries\glm;$(SolutionDir)..\Libraries\tinyobjloader;$(SolutionDir)..\Libraries\pcg-cpp\include;$(IncludePath)</IncludePath>
     <LibraryPath>$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <IncludePath>$(SolutionDir)..\Libraries\glad\include;$(SolutionDir)..\Libraries\glfw-3.2.1\include;$(SolutionDir)..\Libraries\glm;$(SolutionDir)..\Libraries\tinyobjloader;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)..\Libraries\glad\include;$(SolutionDir)..\Libraries\glfw-3.2.1\include;$(SolutionDir)..\Libraries\glm;$(SolutionDir)..\Libraries\tinyobjloader;$(SolutionDir)..\Libraries\pcg-cpp\include;$(IncludePath)</IncludePath>
     <LibraryPath>$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
