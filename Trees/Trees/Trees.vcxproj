@@ -148,8 +148,8 @@
     <None Include="Shaders\treeNode-vert.vert" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="OpenGL\ShaderProgram.h" />
     <ClInclude Include="Scene\Mesh.h" />
-    <ClInclude Include="ShaderProgram.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

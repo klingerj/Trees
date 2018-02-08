@@ -14,4 +14,3 @@ public:
     ~ShaderProgram() {}
     void use(); // Use this ShaderProgram
 };
-

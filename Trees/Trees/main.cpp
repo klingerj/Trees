@@ -97,7 +97,7 @@ int main() {
     // Is it faster to initialize a vector of points with # and value and then set the values, or to push_back values onto an empty list
     // Answer to that: https://stackoverflow.com/questions/32199388/what-is-better-reserve-vector-capacity-preallocate-to-size-or-push-back-in-loo
     // Best options seem to be preallocate or emplace_back with reserve
-    const unsigned int numPoints = 10000;
+    const unsigned int numPoints = 200;
     unsigned int numPointsIncluded = 0;
     std::vector<glm::vec3> points = std::vector<glm::vec3>();
 
@@ -118,15 +118,15 @@ int main() {
     // Create points
     // Unfortunately, we can't really do any memory preallocating because we don't actually know how many points will be included
     for (unsigned int i = 0; i < numPoints; ++i) {
-        const glm::vec3 p = glm::vec3(dis(rng), dis(rng), dis(rng));
-        if ((p.x * p.x + p.y * p.y) > 0.2f /*p.y > 0.25f && (p.x * p.x + p.y * p.y) > 0.2f*/) {
+        const glm::vec3 p = glm::vec3(dis(rng), dis(rng), /*dis(rng)*/ 0.0f);
+        if ((p.x * p.x + p.y * p.y) > 0.15f /*p.y > 0.25f && (p.x * p.x + p.y * p.y) > 0.2f*/) {
             points.emplace_back(p);
             ++numPointsIncluded;
         }
     }
 
     // Create the AttractorPoints
-    const float killDist = 0.4f;
+    const float killDist = 0.3f;
     std::vector<AttractorPoint> attractorPoints = std::vector<AttractorPoint>();
     attractorPoints.reserve(numPointsIncluded);
     for (unsigned int i = 0; i < numPointsIncluded; ++i) {
@@ -135,9 +135,9 @@ int main() {
 
     // Create the TreeNode(s)
     const float branchLength = 0.1f;
-    const float branchInflDist = 0.45f;
+    const float branchInflDist = 0.4f;
     std::vector<TreeNode> treeNodes = std::vector<TreeNode>();
-    treeNodes.emplace_back(TreeNode(glm::vec3(0.0f, 0.1f, 0.0f), branchInflDist, -1));
+    treeNodes.emplace_back(TreeNode(glm::vec3(0.0f, 0.0f, 0.0f), branchInflDist, -1));
     //treeNodes.emplace_back(TreeNode(glm::vec3(-0.1f, 0.0f, 0.0f), branchInflDist, -1));
 
     // Run the tree algorithm
@@ -158,23 +158,26 @@ int main() {
         // Create TreeNodes
         for (int ti = 0; ti < numTreeNodes; ++ti) { // Perform the algorithm for each tree node
             glm::vec3 accumDir = glm::vec3(0.0f); // Accumulate the direction of each influencing AttractorPoint
-            unsigned int numNearbyPoints = 0; // Count number of nearby attractor points
+            bool numNearbyPoints = false; // Count number of nearby attractor points
             const TreeNode& currTreeNode = treeNodes[ti];
+            const glm::vec3& treeNodePoint = currTreeNode.GetPoint();
 
             for (unsigned int pi = 0; pi < attractorPoints.size(); ++pi) {
                 const glm::vec3& attrPoint = attractorPoints[pi].GetPoint();
 
                 if (currTreeNode.InfluencesPoint(attrPoint)) {
-                    accumDir += attrPoint - currTreeNode.GetPoint();
-                    ++numNearbyPoints;
+                    accumDir += attrPoint - treeNodePoint;
+                    numNearbyPoints = true;
                 }
             }
-            if (numNearbyPoints > 0) {
+
+            // If at least one attractor point is within the sphere of influence of this tree node
+            if (numNearbyPoints) {
                 // Normalize the accumulated direction
                 accumDir = glm::normalize(accumDir);
 
                 // Create a new TreeNode
-                treeNodes.emplace_back(TreeNode(treeNodes[ti].GetPoint() + accumDir * branchLength, branchInflDist, ti));
+                treeNodes.emplace_back(TreeNode(treeNodePoint + accumDir * branchLength, branchInflDist, ti));
             }
         }
 
@@ -183,9 +186,9 @@ int main() {
 
         auto attrPtIter = attractorPoints.begin();
 
-        //int i = 0; // count where we are in the loop for when we break
-        bool didRemovePoint = false;
+        //int i = 0; // count where we are in the loop for when we break for debugging reasons
         while (attrPtIter != attractorPoints.end()) {
+            bool didRemovePoint = false;
             for (unsigned int ti = 0; ti < numTreeNodes; ++ti) { // size does NOT include the newly created tree nodes
                 if (attrPtIter->IsKilledBy(treeNodes[ti].GetPoint())) {
                     attrPtIter = attractorPoints.erase(attrPtIter); // crash here occasionally *** TODO
@@ -196,7 +199,6 @@ int main() {
             if (!didRemovePoint) {
                 ++attrPtIter;
             }
-            didRemovePoint = false;
         }
         //std::cout << "Num points left: " << attractorPoints.size() << std::endl;
         numTreeNodes = treeNodes.size();
@@ -277,7 +279,6 @@ int main() {
     tempPtsIdx.reserve(attractorPoints.size());
     for (int i = 0; i < attractorPoints.size(); ++i) {
         tempPtsIdx.emplace_back(i);
-;
     }
     glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * tempPts.size(), tempPts.data(), GL_STATIC_DRAW);
     // EBO Binding
