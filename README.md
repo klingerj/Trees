@@ -1,6 +1,7 @@
 # Trees
 
-
+Current status of the project (red points are attractor points). Show iterations 1-12 of the space colonization algorithm.
+![](./Images/Webp.net-gifmaker.gif)
 
 # Credits / Resources
 * [LearnOpenGL](https://learnopengl.com/) for base code setup guidance.
