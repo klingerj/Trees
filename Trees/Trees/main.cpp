@@ -97,7 +97,7 @@ int main() {
     // Is it faster to initialize a vector of points with # and value and then set the values, or to push_back values onto an empty list
     // Answer to that: https://stackoverflow.com/questions/32199388/what-is-better-reserve-vector-capacity-preallocate-to-size-or-push-back-in-loo
     // Best options seem to be preallocate or emplace_back with reserve
-    const unsigned int numPoints = 200;
+    const unsigned int numPoints = 1000;
     unsigned int numPointsIncluded = 0;
     std::vector<glm::vec3> points = std::vector<glm::vec3>();
 
@@ -119,14 +119,14 @@ int main() {
     // Unfortunately, we can't really do any memory preallocating because we don't actually know how many points will be included
     for (unsigned int i = 0; i < numPoints; ++i) {
         const glm::vec3 p = glm::vec3(dis(rng), dis(rng), /*dis(rng)*/ 0.0f);
-        if ((p.x * p.x + p.y * p.y) > 0.15f /*p.y > 0.25f && (p.x * p.x + p.y * p.y) > 0.2f*/) {
+        if (/*(p.x * p.x + p.y * p.y) > 0.15f*/ p.y > 0.2f /*&& (p.x * p.x + p.y * p.y) > 0.2f*/) {
             points.emplace_back(p);
             ++numPointsIncluded;
         }
     }
 
     // Create the AttractorPoints
-    const float killDist = 0.3f;
+    const float killDist = 0.2f;
     std::vector<AttractorPoint> attractorPoints = std::vector<AttractorPoint>();
     attractorPoints.reserve(numPointsIncluded);
     for (unsigned int i = 0; i < numPointsIncluded; ++i) {
@@ -134,11 +134,18 @@ int main() {
     }
 
     // Create the TreeNode(s)
-    const float branchLength = 0.1f;
-    const float branchInflDist = 0.4f;
+    const float branchLength = 0.08f;
+    const float branchInflDist = 0.3f;
     std::vector<TreeNode> treeNodes = std::vector<TreeNode>();
-    treeNodes.emplace_back(TreeNode(glm::vec3(0.0f, 0.0f, 0.0f), branchInflDist, -1));
-    //treeNodes.emplace_back(TreeNode(glm::vec3(-0.1f, 0.0f, 0.0f), branchInflDist, -1));
+
+    // Place the Tree "seeds"
+    const float halfNumTrees = 2.0f;
+    for (int i = 1; i <= 2; ++i) {
+        treeNodes.emplace_back(TreeNode(glm::vec3(-0.5f * ((float)i / halfNumTrees), 0.15f, 0.0f), branchInflDist, -1));
+        treeNodes.emplace_back(TreeNode(glm::vec3(0.5f * ((float)i / halfNumTrees), 0.15f, 0.0f), branchInflDist, -1));
+    }
+
+    treeNodes.emplace_back(TreeNode(glm::vec3(-0.5f, 0.15f, 0.0f), branchInflDist, -1));
 
     // Run the tree algorithm
     //TODO
