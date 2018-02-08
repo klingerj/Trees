@@ -1,24 +1,29 @@
-#include "glad\glad.h"
-#include "GLFW\glfw3.h"
-#include "glm\glm.hpp"
-#include "glm\gtc\matrix_transform.hpp"
+#include "glad/glad.h"
+#include "GLFW/glfw3.h"
+#include "glm/glm.hpp"
 #include "pcg_random.hpp"
 
-#include "OpenGL/ShaderProgram.h"
-#include "Scene/Mesh.h"
+#include "OpenGL\ShaderProgram.h"
+#include "Scene\Mesh.h"
+#include "Scene\Camera.h"
 
 #include <iostream>
 #include <vector>
 #include <random>
 
-#define GLM_FORCE_RADIANS
-
 // For performance analysis / timing
 //#include <chrono>
 //#include <ctime>
 
+#define GLM_FORCE_RADIANS
+#define VIEWPORT_WIDTH_INITIAL 800
+#define VIEWPORT_HEIGHT_INITIAL 600
+
+Camera camera = Camera(glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(0.0f, 0.0f, 0.0f), 0.7853981634f, (float)VIEWPORT_WIDTH_INITIAL / VIEWPORT_HEIGHT_INITIAL, 0.01f, 10.0f);
+
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     glViewport(0, 0, width, height);
+    camera.SetAspect((float)width / height);
 }
 
 void processInput(GLFWwindow *window) {
@@ -75,7 +80,7 @@ int main() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    GLFWwindow* window = glfwCreateWindow(800, 600, "Trees", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(VIEWPORT_WIDTH_INITIAL, VIEWPORT_HEIGHT_INITIAL, "Trees", NULL, NULL);
     if (window == NULL) {
         std::cout << "Failed to create GLFW window" << std::endl;
         glfwTerminate();
@@ -89,7 +94,7 @@ int main() {
         return -1;
     }
 
-    glViewport(0, 0, 800, 600);
+    glViewport(0, 0, VIEWPORT_WIDTH_INITIAL, VIEWPORT_HEIGHT_INITIAL);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
     // Test loop vectorization. Note: using the compiler flags, this stuff only seems to compile in Release Mode
@@ -162,11 +167,11 @@ int main() {
     //    if a tree node is in the kill distance, remove this attractor point
 
     const unsigned int numIters = 6;
-    int numTreeNodes = treeNodes.size(); // Update the number of tree nodes to run the algorithm on in the for loop
+    unsigned int numTreeNodes = (unsigned int)treeNodes.size(); // Update the number of tree nodes to run the algorithm on in the for loop
 
     for (unsigned int n = 0; n < numIters && attractorPoints.size() > 0; ++n) { // Run the algorithm a certain number of times, or if there are no attractor points
         // Create TreeNodes
-        for (int ti = 0; ti < numTreeNodes; ++ti) { // Perform the algorithm for each tree node
+        for (unsigned int ti = 0; ti < numTreeNodes; ++ti) { // Perform the algorithm for each tree node
             glm::vec3 accumDir = glm::vec3(0.0f); // Accumulate the direction of each influencing AttractorPoint
             bool numNearbyPoints = false; // Count number of nearby attractor points
             const TreeNode& currTreeNode = treeNodes[ti];
@@ -211,7 +216,7 @@ int main() {
             }
         }
         //std::cout << "Num points left: " << attractorPoints.size() << std::endl;
-        numTreeNodes = treeNodes.size();
+        numTreeNodes = (unsigned int)treeNodes.size();
 
         /*for (unsigned int pi = 0; pi < attractorPoints.size(); ++pi) {
             const AttractorPoint& currAttrPt = attractorPoints[pi];
@@ -243,7 +248,7 @@ int main() {
     std::vector<glm::vec3> pointsTreeBranch = std::vector<glm::vec3>(0);
     std::vector<unsigned int> indicesTreeBranch = std::vector<unsigned int>(0);
     int idxCounter = 0;
-    for (int i = treeNodes.size() - 1; i > 0; --i) {
+    for (unsigned int i = (unsigned int)treeNodes.size() - 1; i > 0; --i) {
         const TreeNode& currTreeNode = treeNodes[i];
         const int parentIdx = currTreeNode.GetParentIndex();
         if (parentIdx != -1) {
@@ -350,12 +355,12 @@ int main() {
         glClear(GL_COLOR_BUFFER_BIT);
 
         glBindVertexArray(VAO);
-        sp.setCameraViewProj("cameraViewProj", glm::perspective(0.7853981634f, 1.333f, 0.01f, 10.0f) * glm::lookAt(glm::vec3(2, 2, 2), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0)));
-        glDrawElements(GL_POINTS, tempPtsIdx.size(), GL_UNSIGNED_INT, 0);
+        sp.setCameraViewProj("cameraViewProj", camera.GetViewProj());
+        glDrawElements(GL_POINTS, (unsigned int) tempPtsIdx.size(), GL_UNSIGNED_INT, 0);
         
         glBindVertexArray(VAO2);
-        sp2.setCameraViewProj("cameraViewProj", glm::perspective(0.7853981634f, 1.333f, 0.01f, 10.0f) * glm::lookAt(glm::vec3(1.0f, 1.0f, 1.5f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f)));
-        glDrawElements(GL_LINES, indicesTreeBranch.size(), GL_UNSIGNED_INT, 0);
+        sp2.setCameraViewProj("cameraViewProj", camera.GetViewProj());
+        glDrawElements(GL_LINES, (unsigned int) indicesTreeBranch.size(), GL_UNSIGNED_INT, 0);
 
         /*glBindVertexArray(VAO3);
         sp3.use();
