@@ -1,6 +1,7 @@
 #include "glad\glad.h"
 #include "GLFW\glfw3.h"
 #include "glm\glm.hpp"
+#include "glm\gtc\matrix_transform.hpp"
 #include "pcg_random.hpp"
 
 #include "OpenGL/ShaderProgram.h"
@@ -9,6 +10,8 @@
 #include <iostream>
 #include <vector>
 #include <random>
+
+#define GLM_FORCE_RADIANS
 
 // For performance analysis / timing
 //#include <chrono>
@@ -97,7 +100,7 @@ int main() {
     // Is it faster to initialize a vector of points with # and value and then set the values, or to push_back values onto an empty list
     // Answer to that: https://stackoverflow.com/questions/32199388/what-is-better-reserve-vector-capacity-preallocate-to-size-or-push-back-in-loo
     // Best options seem to be preallocate or emplace_back with reserve
-    const unsigned int numPoints = 1000;
+    const unsigned int numPoints = 3000;
     unsigned int numPointsIncluded = 0;
     std::vector<glm::vec3> points = std::vector<glm::vec3>();
 
@@ -118,7 +121,7 @@ int main() {
     // Create points
     // Unfortunately, we can't really do any memory preallocating because we don't actually know how many points will be included
     for (unsigned int i = 0; i < numPoints; ++i) {
-        const glm::vec3 p = glm::vec3(dis(rng), dis(rng), /*dis(rng)*/ 0.0f);
+        const glm::vec3 p = glm::vec3(dis(rng), dis(rng), dis(rng));
         if (/*(p.x * p.x + p.y * p.y) > 0.15f*/ p.y > 0.2f /*&& (p.x * p.x + p.y * p.y) > 0.2f*/) {
             points.emplace_back(p);
             ++numPointsIncluded;
@@ -158,7 +161,7 @@ int main() {
     //  for each tree node
     //    if a tree node is in the kill distance, remove this attractor point
 
-    const unsigned int numIters = 8;
+    const unsigned int numIters = 6;
     int numTreeNodes = treeNodes.size(); // Update the number of tree nodes to run the algorithm on in the for loop
 
     for (unsigned int n = 0; n < numIters && attractorPoints.size() > 0; ++n) { // Run the algorithm a certain number of times, or if there are no attractor points
@@ -347,11 +350,11 @@ int main() {
         glClear(GL_COLOR_BUFFER_BIT);
 
         glBindVertexArray(VAO);
-        sp.use();
+        sp.setCameraViewProj("cameraViewProj", glm::perspective(0.7853981634f, 1.333f, 0.01f, 10.0f) * glm::lookAt(glm::vec3(2, 2, 2), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0)));
         glDrawElements(GL_POINTS, tempPtsIdx.size(), GL_UNSIGNED_INT, 0);
         
         glBindVertexArray(VAO2);
-        sp2.use();
+        sp2.setCameraViewProj("cameraViewProj", glm::perspective(0.7853981634f, 1.333f, 0.01f, 10.0f) * glm::lookAt(glm::vec3(1.0f, 1.0f, 1.5f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f)));
         glDrawElements(GL_LINES, indicesTreeBranch.size(), GL_UNSIGNED_INT, 0);
 
         /*glBindVertexArray(VAO3);
