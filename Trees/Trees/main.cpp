@@ -1,6 +1,7 @@
 #include "glad/glad.h"
 #include "GLFW/glfw3.h"
 #include "glm/glm.hpp"
+#include "glm/gtx/norm.hpp"
 #include "pcg_random.hpp"
 
 #include "OpenGL\ShaderProgram.h"
@@ -19,7 +20,8 @@
 #define VIEWPORT_WIDTH_INITIAL 800
 #define VIEWPORT_HEIGHT_INITIAL 600
 
-Camera camera = Camera(glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(0.0f, 0.0f, 0.0f), 0.7853981634f, (float)VIEWPORT_WIDTH_INITIAL / VIEWPORT_HEIGHT_INITIAL, 0.01f, 10.0f);
+// For 5-tree scene, eye and ref: glm::vec3(0.25f, 0.5f, 3.5f), glm::vec3(0.25f, 0.0f, 0.0f
+Camera camera = Camera(glm::vec3(0.0f, 0.35f, 1.0f), glm::vec3(0.0f, 0.35f, 0.0f), 0.7853981634f, (float)VIEWPORT_WIDTH_INITIAL / VIEWPORT_HEIGHT_INITIAL, 0.01f, 10.0f);
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     glViewport(0, 0, width, height);
@@ -37,13 +39,13 @@ class TreeNode {
 private:
     glm::vec3 point; // Point in world space
     float influenceDist; // Radius of sphere of influence
-    int parentIdx;
+    int parentIdx; // index of the parent of this Node, in the array of nodes. Will probably change
 
 public:
     TreeNode(const glm::vec3& p, const float& d, const int& i) : point(p), influenceDist(d), parentIdx(i) {}
     ~TreeNode() {}
     inline bool InfluencesPoint(const glm::vec3& p) const {
-        return glm::length(p - point) < influenceDist;
+        return glm::distance2(p, point) < (influenceDist * influenceDist);
     }
     inline const glm::vec3 GetPoint() const {
         return point;
@@ -65,7 +67,7 @@ public:
         return point;
     }
     inline bool IsKilledBy(const glm::vec3& p) const {
-        return glm::length(p - point) < killDist;
+        return glm::distance2(p, point) < (killDist * killDist);
     }
 };
 
@@ -105,7 +107,7 @@ int main() {
     // Is it faster to initialize a vector of points with # and value and then set the values, or to push_back values onto an empty list
     // Answer to that: https://stackoverflow.com/questions/32199388/what-is-better-reserve-vector-capacity-preallocate-to-size-or-push-back-in-loo
     // Best options seem to be preallocate or emplace_back with reserve
-    const unsigned int numPoints = 3000;
+    const unsigned int numPoints = 4000;
     unsigned int numPointsIncluded = 0;
     std::vector<glm::vec3> points = std::vector<glm::vec3>();
 
@@ -121,20 +123,20 @@ int main() {
     // Good seed: 100
     // Bad seed (causes crash): 101
 
-    std::uniform_real_distribution<float> dis(-1.0f, 1.0f);
+    std::uniform_real_distribution<float> dis(-3.0f, 3.0f);
 
     // Create points
     // Unfortunately, we can't really do any memory preallocating because we don't actually know how many points will be included
     for (unsigned int i = 0; i < numPoints; ++i) {
-        const glm::vec3 p = glm::vec3(dis(rng), dis(rng), dis(rng));
-        if (/*(p.x * p.x + p.y * p.y) > 0.15f*/ p.y > 0.2f /*&& (p.x * p.x + p.y * p.y) > 0.2f*/) {
+        const glm::vec3 p = glm::vec3(dis(rng) * 0.16667f, (dis(rng) + 3.0f) * 0.083333f * 0.75f + 0.2f, dis(rng) * 0.083333f * 0.75f);
+        if ((p.x * p.x + p.y * p.y) > 0.1f /*p.y > 0.2f*/ /*&& (p.x * p.x + p.y * p.y) > 0.2f*/) {
             points.emplace_back(p);
             ++numPointsIncluded;
         }
     }
 
     // Create the AttractorPoints
-    const float killDist = 0.2f;
+    const float killDist = 0.25f;
     std::vector<AttractorPoint> attractorPoints = std::vector<AttractorPoint>();
     attractorPoints.reserve(numPointsIncluded);
     for (unsigned int i = 0; i < numPointsIncluded; ++i) {
@@ -142,18 +144,16 @@ int main() {
     }
 
     // Create the TreeNode(s)
-    const float branchLength = 0.08f;
-    const float branchInflDist = 0.3f;
+    const float branchLength = 0.05f;
+    const float branchInflDist = 0.26f;
     std::vector<TreeNode> treeNodes = std::vector<TreeNode>();
 
     // Place the Tree "seeds"
-    const float halfNumTrees = 2.0f;
-    for (int i = 1; i <= 2; ++i) {
-        treeNodes.emplace_back(TreeNode(glm::vec3(-0.5f * ((float)i / halfNumTrees), 0.15f, 0.0f), branchInflDist, -1));
-        treeNodes.emplace_back(TreeNode(glm::vec3(0.5f * ((float)i / halfNumTrees), 0.15f, 0.0f), branchInflDist, -1));
-    }
+    /*for (int i = 1; i <= 5; ++i) {
+        treeNodes.emplace_back(TreeNode(glm::vec3(0.75f * ((float)i) - 2.0f, 0.0f, 0.0f), branchInflDist + 0.05f * i, -1));
+    }*/
 
-    treeNodes.emplace_back(TreeNode(glm::vec3(-0.5f, 0.15f, 0.0f), branchInflDist, -1));
+    treeNodes.emplace_back(TreeNode(glm::vec3(0.0f, 0.1f, 0.0f), branchInflDist, -1));
 
     // Run the tree algorithm
     //TODO
@@ -166,7 +166,7 @@ int main() {
     //  for each tree node
     //    if a tree node is in the kill distance, remove this attractor point
 
-    const unsigned int numIters = 6;
+    const unsigned int numIters = 12;
     unsigned int numTreeNodes = (unsigned int)treeNodes.size(); // Update the number of tree nodes to run the algorithm on in the for loop
 
     for (unsigned int n = 0; n < numIters && attractorPoints.size() > 0; ++n) { // Run the algorithm a certain number of times, or if there are no attractor points
@@ -189,6 +189,10 @@ int main() {
             // If at least one attractor point is within the sphere of influence of this tree node
             if (numNearbyPoints) {
                 // Normalize the accumulated direction
+                accumDir = glm::normalize(accumDir);
+
+                const glm::vec3 tropism = glm::vec3(0.0f, 0.5f, 0.0f);
+                accumDir += tropism;
                 accumDir = glm::normalize(accumDir);
 
                 // Create a new TreeNode
@@ -317,6 +321,7 @@ int main() {
     glEnableVertexAttribArray(0);
     glBindVertexArray(0);
     
+    // This was TinyOBJ Debugging
     /*for (int i = 0; i < m.GetVertices().size(); i++) {
         std::cout << m.GetVertices()[i].pos.x << m.GetVertices()[i].pos.y << m.GetVertices()[i].pos.z << std::endl;
         std::cout << m.GetVertices()[i].nor.x << m.GetVertices()[i].nor.y << m.GetVertices()[i].nor.z << std::endl;
@@ -356,15 +361,15 @@ int main() {
 
         glBindVertexArray(VAO);
         sp.setCameraViewProj("cameraViewProj", camera.GetViewProj());
-        glDrawElements(GL_POINTS, (unsigned int) tempPtsIdx.size(), GL_UNSIGNED_INT, 0);
+        glDrawElements(GL_POINTS, (GLsizei) tempPtsIdx.size(), GL_UNSIGNED_INT, 0);
         
         glBindVertexArray(VAO2);
         sp2.setCameraViewProj("cameraViewProj", camera.GetViewProj());
-        glDrawElements(GL_LINES, (unsigned int) indicesTreeBranch.size(), GL_UNSIGNED_INT, 0);
+        glDrawElements(GL_LINES, (GLsizei) indicesTreeBranch.size(), GL_UNSIGNED_INT, 0);
 
         /*glBindVertexArray(VAO3);
-        sp3.use();
-        glDrawElements(GL_TRIANGLES, idx.size(), GL_UNSIGNED_INT, 0);*/
+        sp3.setCameraViewProj("cameraViewProj", camera.GetViewProj());
+        glDrawElements(GL_TRIANGLES, (GLsizei) idx.size(), GL_UNSIGNED_INT, 0);*/
 
         glfwSwapBuffers(window);
         glfwPollEvents();
