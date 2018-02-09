@@ -21,7 +21,8 @@
 #define VIEWPORT_HEIGHT_INITIAL 600
 
 // For 5-tree scene, eye and ref: glm::vec3(0.25f, 0.5f, 3.5f), glm::vec3(0.25f, 0.0f, 0.0f
-Camera camera = Camera(glm::vec3(0.0f, 0.35f, 1.0f), glm::vec3(0.0f, 0.35f, 0.0f), 0.7853981634f, (float)VIEWPORT_WIDTH_INITIAL / VIEWPORT_HEIGHT_INITIAL, 0.01f, 10.0f);
+Camera camera = Camera(glm::vec3(0.0f, 0.35f, 0.9f), glm::vec3(0.0f, 0.35f, 0.0f), 0.7853981634f,
+                          (float)VIEWPORT_WIDTH_INITIAL / VIEWPORT_HEIGHT_INITIAL, 0.01f, 10.0f);
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     glViewport(0, 0, width, height);
@@ -73,8 +74,8 @@ public:
 
 int main() {
     // Test Mesh Loading
-    Mesh m = Mesh();
-    m.LoadFromFile("OBJs/plane.obj");
+    //Mesh m = Mesh();
+    //m.LoadFromFile("OBJs/plane.obj");
 
     // GLFW Window Setup
     glfwInit();
@@ -144,7 +145,7 @@ int main() {
     }
 
     // Create the TreeNode(s)
-    const float branchLength = 0.05f;
+    const float branchLength = 0.03f;
     const float branchInflDist = 0.26f;
     std::vector<TreeNode> treeNodes = std::vector<TreeNode>();
 
@@ -153,7 +154,7 @@ int main() {
         treeNodes.emplace_back(TreeNode(glm::vec3(0.75f * ((float)i) - 2.0f, 0.0f, 0.0f), branchInflDist + 0.05f * i, -1));
     }*/
 
-    treeNodes.emplace_back(TreeNode(glm::vec3(0.0f, 0.1f, 0.0f), branchInflDist, -1));
+    treeNodes.emplace_back(TreeNode(glm::vec3(0.01f, 0.1f, 0.0f), branchInflDist, -1));
 
     // Run the tree algorithm
     //TODO
@@ -166,14 +167,15 @@ int main() {
     //  for each tree node
     //    if a tree node is in the kill distance, remove this attractor point
 
-    const unsigned int numIters = 12;
+    const unsigned int numIters = 15;
     unsigned int numTreeNodes = (unsigned int)treeNodes.size(); // Update the number of tree nodes to run the algorithm on in the for loop
+    bool didUpdate = false; // Flag indicating that none of the tree nodes had any nearby points, so kill the algorithm
 
-    for (unsigned int n = 0; n < numIters && attractorPoints.size() > 0; ++n) { // Run the algorithm a certain number of times, or if there are no attractor points
+    for (unsigned int n = 0; n < numIters && attractorPoints.size() > 0; ++n) {
         // Create TreeNodes
         for (unsigned int ti = 0; ti < numTreeNodes; ++ti) { // Perform the algorithm for each tree node
             glm::vec3 accumDir = glm::vec3(0.0f); // Accumulate the direction of each influencing AttractorPoint
-            bool numNearbyPoints = false; // Count number of nearby attractor points
+            bool numNearbyPoints = false; // Flag indicating there is at least one nearby attractor point
             const TreeNode& currTreeNode = treeNodes[ti];
             const glm::vec3& treeNodePoint = currTreeNode.GetPoint();
 
@@ -188,16 +190,21 @@ int main() {
 
             // If at least one attractor point is within the sphere of influence of this tree node
             if (numNearbyPoints) {
+                didUpdate = true;
                 // Normalize the accumulated direction
                 accumDir = glm::normalize(accumDir);
 
-                const glm::vec3 tropism = glm::vec3(0.0f, 0.5f, 0.0f);
-                accumDir += tropism;
+                /*const glm::vec3 tropism = glm::vec3(0.0f, -0.01f * n * n, 0.0f);
+                accumDir += tropism;*/
                 accumDir = glm::normalize(accumDir);
 
                 // Create a new TreeNode
                 treeNodes.emplace_back(TreeNode(treeNodePoint + accumDir * branchLength, branchInflDist, ti));
             }
+        }
+
+        if (!didUpdate) {
+            break; // kill the algorithm
         }
 
         // Kill attractor points that need to be killed
@@ -248,18 +255,146 @@ int main() {
         indices[i] = i;
     }
 
+    /// Untransformed cylinder code
+    std::vector<glm::vec3> cylPoints = std::vector<glm::vec3>();
+    std::vector<glm::vec3> cylNormals = std::vector<glm::vec3>();
+    std::vector<unsigned int> cylIndices = std::vector<unsigned int>();
+    const float radius = 0.005f;
+    // Could speed this up by calling .reserve()
+    // should support variable LOD branch cylinders? maybe later
+
+    // Generate Positions:
+    // Store top cap verts (Indices 0 - 19)
+    for (int i = 0; i < 20; ++i) {
+        cylPoints.emplace_back(glm::vec3(glm::rotate(glm::mat4(1.0f), i * 18.0f, glm::vec3(0, 1, 0)) * glm::vec4(radius, 1.0f, 0, 1)));
+    }
+
+    // Store bottom cap verts (Indices 20 - 39)
+    for (int i = 20; i < 40; ++i) {
+        cylPoints.emplace_back(glm::vec3(glm::rotate(glm::mat4(1.0f), (i - 20) * 18.0f, glm::vec3(0, 1, 0)) * glm::vec4(radius, -1.0f, 0, 1)));
+    }
+
+    // Generate second rings for the barrel of the cylinder
+
+    // Store top cap verts (Indices 40 - 59)
+    for (int i = 0; i < 20; ++i) {
+        cylPoints.emplace_back(glm::vec3(glm::rotate(glm::mat4(1.0f), i * 18.0f, glm::vec3(0, 1, 0)) * glm::vec4(radius, 1.0f, 0, 1)));
+    }
+    // Store bottom cap verts (Indices 60 - 79)
+    for (int i = 20; i < 40; ++i) {
+        cylPoints.emplace_back(glm::vec3(glm::rotate(glm::mat4(1.0f), (i - 20) * 18.0f, glm::vec3(0, 1, 0)) * glm::vec4(radius, -1.0f, 0, 1)));
+    }
+
+    // Generate Normals:
+    for (int i = 0; i < 20; i++) {
+        cylNormals.emplace_back(glm::vec3(0, 1, 0));
+    }
+    //Store bottom cap normals (IDX 20 - 39)
+    for (int i = 20; i < 40; i++) {
+        cylNormals.emplace_back(glm::vec3(0, -1, 0));
+    }
+    //Store top of barrel normals (IDX 40 - 59)
+    for (int i = 0; i < 20; i++) {
+        cylNormals.emplace_back(glm::vec3(glm::rotate(glm::mat4(1.0f), i*18.0f, glm::vec3(0, 1, 0)) * glm::vec4(1, 0, 0, 0)));
+    }
+    //Store bottom of barrel normals (IDX 60 - 79)
+    for (int i = 20; i < 40; i++) {
+        cylNormals.emplace_back(glm::vec3(glm::rotate(glm::mat4(1.0f), (i - 20)*18.0f, glm::vec3(0, 1, 0)) * glm::vec4(1, 0, 0, 0)));
+    }
+
+    // Generate Indices:
+    //Build indices for the top cap (18 tris, indices 0 - 53, up to vertex 19)
+    for (int i = 0; i < 18; ++i) {
+        cylIndices.emplace_back(0);
+        cylIndices.emplace_back(i + 1);
+        cylIndices.emplace_back(i + 2);
+    }
+    //Build indices for the top cap (18 tris, indices 54 - 107, up to vertex 39)
+    for (int i = 18; i < 36; ++i) {
+        cylIndices.emplace_back(20);
+        cylIndices.emplace_back(i + 3);
+        cylIndices.emplace_back(i + 4);
+    }
+    //Build indices for the barrel of the cylinder
+    for (int i = 0; i < 19; ++i) {
+        cylIndices.emplace_back(i + 40);
+        cylIndices.emplace_back(i + 41);
+        cylIndices.emplace_back(i + 60);
+        cylIndices.emplace_back(i + 41);
+        cylIndices.emplace_back(i + 61);
+        cylIndices.emplace_back(i + 60);
+    }
+    //Build the last quad of the barrel, which has looping indices
+    cylIndices.emplace_back(59);
+    cylIndices.emplace_back(40);
+    cylIndices.emplace_back(79);
+    cylIndices.emplace_back(40);
+    cylIndices.emplace_back(60);
+    cylIndices.emplace_back(79);
+
+    // End Cylinder generation
+
     // Create points and indices for the tree branches
-    std::vector<glm::vec3> pointsTreeBranch = std::vector<glm::vec3>(0);
-    std::vector<unsigned int> indicesTreeBranch = std::vector<unsigned int>(0);
+    std::vector<glm::vec3> pointsTreeBranch = std::vector<glm::vec3>();
+    //std::vector<glm::vec3> normalsTreeBranch = std::vector<glm::vec3>();
+    std::vector<unsigned int> indicesTreeBranch = std::vector<unsigned int>();
     int idxCounter = 0;
     for (unsigned int i = (unsigned int)treeNodes.size() - 1; i > 0; --i) {
         const TreeNode& currTreeNode = treeNodes[i];
         const int parentIdx = currTreeNode.GetParentIndex();
         if (parentIdx != -1) {
-            pointsTreeBranch.push_back(treeNodes[parentIdx].GetPoint()); // base of branch
+
+            // Copy over the platonic cylinder positions
+            // transform them individually i guess
+            // Check if i should emplace_back repeatedly or create a whole new vector and use insert - performance compare after getting them working
+            // Could//Should move this to a compute shader bc doing this sequentially is lame
+
+            // Compute the rotation using quaternion
+            const glm::vec3 branchBasePoint = treeNodes[parentIdx].GetPoint();
+            glm::vec3 branchAxis = currTreeNode.GetPoint() - branchBasePoint;
+
+            // Compute the translation component real quick - set to the the base branch point + 0.5 * D, placing the cylinder at the halfway point
+            const glm::vec3 translation = branchBasePoint + 0.5f * branchAxis;
+            const float branchAxisLength = length(branchAxis);
+            
+            // Back to rotation
+            branchAxis /= branchAxisLength;
+            const glm::vec3 axis = glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), branchAxis); // might be negative / TODO *** goes to zero for perfectly vertical trees. find a new way to do this
+            const float angle = std::acos(glm::dot(glm::vec3(0.0f, 1.0f, 0.0f), branchAxis));
+
+            const glm::quat branchQuat = glm::angleAxis(angle, axis);
+            glm::mat4 branchTrans = glm::toMat4(branchQuat);
+
+            // Create an overall transformation matrix of translation and rotation
+            branchTrans = glm::translate(glm::mat4(1.0f), translation) * branchTrans * glm::scale(glm::mat4(1.0f), glm::vec3(1.0f, branchAxisLength * 0.5f, 1.0f));
+
+            std::vector<glm::vec3> cylPointsTrans = std::vector<glm::vec3>();
+            std::vector<glm::vec3> cylNormalsTrans = std::vector<glm::vec3>();
+            // Interleave VBO data
+            for (int i = 0; i < cylPoints.size(); ++i) {
+                cylPointsTrans.emplace_back(glm::vec3(branchTrans * glm::vec4(cylPoints[i], 1.0f)));
+                cylPointsTrans.emplace_back(glm::vec3(branchTrans * glm::vec4(cylNormals[i], 0.0f)));
+            }
+
+            /*for (int i = 0; i < cylNormals.size(); ++i) {
+                
+            }*/
+
+            std::vector<unsigned int> cylIndicesNew = std::vector<unsigned int>();
+            for (int i = 0; i < cylIndices.size(); ++i) {
+                cylIndicesNew.emplace_back(cylIndices[i] + pointsTreeBranch.size() / 2);
+            }
+
+
+            // Creation for GL_LINES branches
+            /*pointsTreeBranch.push_back(treeNodes[parentIdx].GetPoint()); // base of branch
             pointsTreeBranch.push_back(currTreeNode.GetPoint()); // branch end point
             indicesTreeBranch.emplace_back(idxCounter++);
-            indicesTreeBranch.emplace_back(idxCounter++);
+            indicesTreeBranch.emplace_back(idxCounter++);*/
+
+            pointsTreeBranch.insert(pointsTreeBranch.end(), cylPointsTrans.begin(), cylPointsTrans.end());
+            //normalsTreeBranch.insert(normalsTreeBranch.end(), cylNormalsTrans.begin(), cylNormalsTrans.end());
+            indicesTreeBranch.insert(indicesTreeBranch.end(), cylIndicesNew.begin(), cylIndicesNew.end());
         }
     }
     
@@ -317,8 +452,11 @@ int main() {
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO2);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * indicesTreeBranch.size(), indicesTreeBranch.data(), GL_STATIC_DRAW);
     // Attribute linking
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
+    // Pos and Nor
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3) * 2, (void*)0);
     glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3) * 2, (void*)sizeof(glm::vec3));
+    glEnableVertexAttribArray(1);
     glBindVertexArray(0);
     
     // This was TinyOBJ Debugging
@@ -331,10 +469,10 @@ int main() {
         std::cout << m.GetIndices()[i] << std::endl;
     }*/
 
-    std::vector<unsigned int> idx = m.GetIndices();
+    //std::vector<unsigned int> idx = m.GetIndices();
 
     // Mesh buffers
-    glBindVertexArray(VAO3);
+    /*glBindVertexArray(VAO3);
     glBindBuffer(GL_ARRAY_BUFFER, VBO3);
     glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex) * m.GetVertices().size(), m.GetVertices().data(), GL_STATIC_DRAW);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO3);
@@ -347,7 +485,7 @@ int main() {
     // Bind the 0th VBO. Set up attribute pointers to location 1 for normals.
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)sizeof(glm::vec3)); // skip the first Vertex.pos
     glEnableVertexAttribArray(1);
-    glBindVertexArray(0);
+    glBindVertexArray(0);*/
 
     glPointSize(2);
     glLineWidth(1);
@@ -365,7 +503,7 @@ int main() {
         
         glBindVertexArray(VAO2);
         sp2.setCameraViewProj("cameraViewProj", camera.GetViewProj());
-        glDrawElements(GL_LINES, (GLsizei) indicesTreeBranch.size(), GL_UNSIGNED_INT, 0);
+        glDrawElements(GL_TRIANGLES, (GLsizei) indicesTreeBranch.size(), GL_UNSIGNED_INT, 0);
 
         /*glBindVertexArray(VAO3);
         sp3.setCameraViewProj("cameraViewProj", camera.GetViewProj());
