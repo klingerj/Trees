@@ -5,6 +5,8 @@ layout (location = 1) in vec3 fNor;
 out vec4 FragColor;
 
 void main() {
-    float lambert = dot(normalize(vec3(1, 1, -2)), fNor);
-    FragColor = vec4(vec3(lambert), 1);
+    float lambert = dot(normalize(vec3(0.5, 0.65, 0.4)), fNor);
+    FragColor = vec4(vec3(abs(lambert)), 1);
+    //FragColor = vec4(vec3(0, 1, 0), 1);
+    //FragColor = vec4(abs(fNor), 1);
 }

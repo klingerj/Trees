@@ -9,6 +9,6 @@ uniform mat4 cameraViewProj;
 
 void main() {
     fPos = vPos;
-    fNor = vNor;
+    fNor = normalize(vNor);
     gl_Position = cameraViewProj * vec4(vPos, 1);
 }
