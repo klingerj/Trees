@@ -157,7 +157,7 @@ int main() {
 
     // Create the TreeNode(s)
     const float branchLength = 0.03f;
-    const float branchInflDist = branchLength * 2.4f; // according to second paper, should be 2 * internode-length
+    const float branchInflDist = branchLength * 2.75f; // according to second paper, should be 2 * internode-length
     std::vector<TreeNode> treeNodes = std::vector<TreeNode>();
 
     // Place the Tree "seeds"
@@ -179,7 +179,7 @@ int main() {
     //  for each tree node
     //    if a tree node is in the kill distance, remove this attractor point
 
-    const unsigned int numIters = 10;
+    const unsigned int numIters = 2;
     unsigned int numTreeNodes = (unsigned int)treeNodes.size();
 
     #define DO_ALG
@@ -277,26 +277,8 @@ int main() {
         // 1. Remove all points that lie within the occupancy sphere of each tree node
         // (Based on the above original space col algorithm)
         // https://stackoverflow.com/questions/347441/erasing-elements-from-a-vector
-        
-        // ** improved point removal loop taken from: https://stackoverflow.com/questions/4645705/vector-erase-iterator/4645727
-        /*int i = 0;
-        std::vector<AttractorPoint>::iterator attrPtIter;
-        for (attrPtIter = attractorPoints.begin(); attrPtIter != attractorPoints.end(); ) {
-            std::vector<AttractorPoint>::iterator currAttrPtIter = attrPtIter++;
-            //bool didRemovePoint = false;
 
-            for (unsigned int ti = 0; ti < numTreeNodes; ++ti) {
-                if (treeNodes[ti].InfluencesPoint(currAttrPtIter->GetPoint())) {
-                    attractorPoints.erase(currAttrPtIter);
-                    //didRemovePoint = true;
-                    break;
-                }
-            }
-            ++i;
-            std::cout << i << std::endl;
-        }*/
-
-        int i = 0;
+        //int i = 0;
         auto attrPtIter = attractorPoints.begin();
         while (attrPtIter != attractorPoints.end()) {
             auto endIter = attractorPoints.end();
@@ -312,8 +294,7 @@ int main() {
             if (!didRemovePoint) {
                 ++attrPtIter;
             }
-            ++i;
-            //std::cout << i << std::endl;
+            //++i;
         }
 
         // 2. Get all attractor points within the perception volume
