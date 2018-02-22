@@ -129,13 +129,17 @@ public:
         // maybe make the reserve value a function of the iterations, later iterations will probably be shorter than an early branch that has
         // been around for awhile?
     }
+    inline const std::vector<Bud>& GetBuds() const {
+        return buds;
+    }
     // Adds a certain number of axillary buds to the list of buds, starting at the index just before the terminal bud
     void AddAxillaryBuds(const int numBuds, const float internodeLength) {
         // Create a temporary list of Buds that will be inserted in this branch's list of buds
         std::vector<Bud> newBuds = std::vector<Bud>();
         
         // Axillary Buds will all make an angle of 137.5 degrees (the Golden Angle) with the direction of the given branch.
-        const glm::quat branchQuat = glm::angleAxis(glm::radians(137.5f), glm::normalize(glm::cross(growthDirection, WORLD_UP_VECTOR)));
+        glm::vec3 crossVec = (std::abs(glm::dot(growthDirection, WORLD_UP_VECTOR)) > 0.99f) ? glm::vec3(1.0f, 0.0f, 0.0f) : WORLD_UP_VECTOR; // avoid glm::cross returning a 0-vector
+        const glm::quat branchQuat = glm::angleAxis(glm::radians(137.5f), glm::normalize(glm::cross(growthDirection, crossVec)));
         const glm::mat4 budRotMat = glm::toMat4(branchQuat);
         glm::vec3 budGrowthDir = glm::normalize(glm::vec3(budRotMat * glm::vec4(growthDirection, 0.0f)));
 
@@ -155,15 +159,18 @@ public:
 class Tree {
 private:
     std::vector<TreeBranch> branches;
+    inline void InitializeTree(const glm::vec3& p) { branches.emplace_back(TreeBranch(p, 0)); } // Init a tree to be a single branch
 public:
     Tree(const glm::vec3& p) {
         branches.reserve(256); // Reserve a lot so we don't have to resize often. This vector will definitely expand a lot.
         InitializeTree(p);
     }
-    void InitializeTree(const glm::vec3& p) { branches.emplace_back(TreeBranch(p, 0)); } // Init a tree to be a single branch
+    inline const std::vector<TreeBranch>& GetBranches() const {
+        return branches;
+    }
     void IterateGrowth(const int numIters, std::vector<AttractorPoint>& attractorPoints) {
         for (int n = 0; n < numIters; ++n) {
-            IterateSpaceColonization(attractorPoints); // 1. Compute Q (presence of space/light) and optimal growth direction using space colonization
+            PerformSpaceColonization(attractorPoints); // 1. Compute Q (presence of space/light) and optimal growth direction using space colonization
             ComputeBHModel();                          // 2. Using BH Model, flow resource basipetally and then acropetally
             AppendNewShoots();                         // 3. Add new shoots using the resource computed in previous step
         }
@@ -171,7 +178,7 @@ public:
 
         
     }
-    void IterateSpaceColonization(std::vector<AttractorPoint>& attractorPoints) {
+    void PerformSpaceColonization(std::vector<AttractorPoint>& attractorPoints) {
         // 1. Remove all attractor points that are too close to any bud
         for (int br = 0; br < branches.size(); ++br) {
             const std::vector<Bud>& buds = branches[br].buds;
@@ -226,8 +233,8 @@ public:
         }
     }
     void ComputeBHModel() { // Perform each pass of the BH Model for resource flow
-        IterateBHModelBasipetalPass();
-        IterateBHModelAcropetalPass();
+        ComputeBHModelBasipetalPass(); // don't wrap this so much, just call the recursive functions. they're one liners anyway. TODO
+        ComputeBHModelAcropetalPass();
     }
 
     // make this a non-member helper function in the cpp file
@@ -344,6 +351,11 @@ public:
 
 };*/
 
+
+
+
+
+// OLD
 // Tree growth code - will need to be refactored TO ANOTHER FILE PLS ALSO CANT TURN OFF CAPS LOCK RN SO
 // this is now outdated **
 
@@ -451,18 +463,17 @@ int main() {
     treeNodes.emplace_back(TreeNode(glm::vec3(0.01f, 0.28f, 0.0f), branchInflDist, -1, 0));
     //treeNodes.emplace_back(TreeNode(glm::vec3(0.1f, 0.38f, 0.0f), branchInflDist, 0, 0));
 
-    // Run the tree algorithm
-    //TODO
-    //for a certain number of iterations?
-    //for each tree node
-    // for each point
-    //    get each point in reach. add it to a vector of points.
-    //       compute the direction of the next treenode, create it a distance of d away
-    //for each point
-    //  for each tree node
-    //    if a tree node is in the kill distance, remove this attractor point
-
     const unsigned int numIters = 2;
+
+    // new tree generation
+    Tree tree = Tree(glm::vec3(0.0f));
+    tree.IterateGrowth(numIters, attractorPoints);
+    // waow done
+
+
+
+
+
     unsigned int numTreeNodes = (unsigned int)treeNodes.size();
 
     //#define DO_ALG
@@ -827,6 +838,36 @@ int main() {
 
     // End cube generation
 
+    // GL code
+    // want to generate blue gl point for every bud and green gl line for each branch
+
+    // Vectors of stuff to render
+    std::vector<glm::vec3> budPoints = std::vector<glm::vec3>();
+    std::vector<unsigned int> budIndices = std::vector<unsigned int>();
+    std::vector<unsigned int> branchIndices = std::vector<unsigned int>(); // one gl line corresponds to one internode. These indices will use the budPoints vector.
+
+    // get the points vectors
+    const std::vector<TreeBranch>& branches = tree.GetBranches();
+    for (int br = 0; br < tree.GetBranches().size(); ++br) {
+        const std::vector<Bud>& buds = branches[br].GetBuds();
+        const unsigned int idxOffset = budPoints.size();
+        for (int bu = 0; bu < buds.size(); ++bu) {
+            if (bu < buds.size() - 1) { // proper indexing, just go with it
+                branchIndices.emplace_back(bu + idxOffset);
+                branchIndices.emplace_back(bu + 1 + idxOffset);
+            }
+            budPoints.emplace_back(buds[bu].point);
+        }
+    }
+
+    // create indices vector
+    for (int i = 0; i < budPoints.size(); ++i) {
+        budIndices.emplace_back(i);
+    }
+
+
+
+
     // Create points and indices for the tree branches
     std::vector<glm::vec3> pointsTreeBranch = std::vector<glm::vec3>();
     std::vector<glm::vec3> normalsTreeBranch = std::vector<glm::vec3>();
@@ -961,6 +1002,7 @@ int main() {
     glEnableVertexAttribArray(1);
 
     #else
+    /*
     // GL Lines
     glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * pointsTreeBranch.size(), pointsTreeBranch.data(), GL_STATIC_DRAW);
     // Tree Branches EBO
@@ -970,6 +1012,22 @@ int main() {
     // Pos
     // Shader uses the normal but just leave it blank here and it'll render black which is ok i guess
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
+    glEnableVertexAttribArray(0);
+    glBindVertexArray(0);*/
+
+    glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * budPoints.size(), budPoints.data(), GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO2);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * budIndices.size(), budIndices.data(), GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0); // pass positions
+    glEnableVertexAttribArray(0);
+    glBindVertexArray(0);
+
+    glBindVertexArray(VAO3);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO3);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * budPoints.size(), budPoints.data(), GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO3);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * branchIndices.size(), branchIndices.data(), GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0); // pass positions
     glEnableVertexAttribArray(0);
     glBindVertexArray(0);
 
@@ -1016,18 +1074,30 @@ int main() {
         glClearColor(0.1f, 0.2f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+        // Attractor Points
         glBindVertexArray(VAO);
         sp.setCameraViewProj("cameraViewProj", camera.GetViewProj());
         glDrawElements(GL_POINTS, (GLsizei) tempPtsIdx.size(), GL_UNSIGNED_INT, 0);
         
+        // old cubes / new bud points
         glBindVertexArray(VAO2);
         sp2.setCameraViewProj("cameraViewProj", camera.GetViewProj());
         #ifdef CUBES
         glDrawElements(GL_TRIANGLES, (GLsizei)indicesTreeBranch.size(), GL_UNSIGNED_INT, 0);
         #else
-        glDrawElements(GL_LINES, (GLsizei)indicesTreeBranch.size(), GL_UNSIGNED_INT, 0);
-        sp.use();
-        glDrawElements(GL_POINTS, (GLsizei)indicesTreeBranch.size(), GL_UNSIGNED_INT, 0);
+        //glDrawElements(GL_LINES, (GLsizei)indicesTreeBranch.size(), GL_UNSIGNED_INT, 0);
+        //sp.use();
+        // draws bud points
+        glDrawElements(GL_POINTS, (GLsizei)budIndices.size(), GL_UNSIGNED_INT, 0);
+        #endif
+
+        #ifndef CUBES
+
+        glBindVertexArray(VAO3);
+        // new tree branches
+        sp3.setCameraViewProj("cameraViewProj", camera.GetViewProj());
+        glDrawElements(GL_LINES, (GLsizei)branchIndices.size(), GL_UNSIGNED_INT, 0);
+
         #endif
 
         glfwSwapBuffers(window);
