@@ -27,7 +27,17 @@
 #define INITIAL_BRANCH_RADIUS 0.1f
 #define BUD_OCCUPANCY_RADIUS 0.1f
 #define BUD_PERCEPTION_RADIUS 0.2f // should be a multiple of the internode length of the branch that the bud is on. Not a define
+
+// Used in space colonization
 #define COS_THETA 0.70710678118f
+
+// For BH Model
+#define ALPHA 1.0f // proportionality constant for resource flow computation
+#define LAMBDA 0.5f
+
+// For addition of new shoots
+#define GROWTH_DIR_WEIGHT 0.5f
+#define TROPISM_DIR_WEIGHT 0.5f
 
 // For 5-tree scene, eye and ref: glm::vec3(0.25f, 0.5f, 3.5f), glm::vec3(0.25f, 0.0f, 0.0f
 Camera camera = Camera(glm::vec3(0.125f, 0.4f, 0.325f), glm::vec3(0.0f, 0.4f, 0.0f), 0.7853981634f, // 45 degrees vs 75 degrees
@@ -82,34 +92,62 @@ enum BUD_TYPE {
 // Store any information relevant to a particular bud
 struct Bud {
     glm::vec3 point;
+    glm::vec3 branchGrowthDir; // Growth direction of this bud. Use Golden Angle (137.5 degrees) for lateral buds.
     glm::vec3 optimalGrowthDir; // optimal growth direction computing during space colonization
     float occupancyRadius; // Radius about the bud in which attractor points are removed
     float environmentQuality; // In space colonization, this is a binary 0 or 1
     float accumEnvironmentQuality; // Using Borchert-Honda Model, indicates the accumulated amount of resources reaching this bud
+    float resourceBH; // amount of available resource reaching this Bud using the BH Model
     int formedBranchIndex; // If this bud's fate is FORMED_BRANCH, this is the index in the Tree's list of branches of that formed branch. -1 o.w.
+    float internodeLength;
     BUD_TYPE type;
     BUD_FATE fate;
+    
+    // Constructor: to allow use with emplace_back() on vectors
+    Bud(const glm::vec3& p, const glm::vec3& b, const glm::vec3& d, const float r, const float q, const float aq, const float re,
+        const int i, const float l, BUD_TYPE t, BUD_FATE f) :
+        point(p), branchGrowthDir(b), optimalGrowthDir(d), occupancyRadius(r), environmentQuality(q), accumEnvironmentQuality(aq), resourceBH(re),
+        formedBranchIndex(i), internodeLength(l), type(t), fate(f) {}
 };
 
 // Wraps up necessary information regarding a tree branch.
 class TreeBranch {
     friend class Tree;
 private: // TODO: make the terminal bud just be the last bud in the one list of buds. Too complicated differentiating it in the code.
-    Bud terminalBud; // All branches have a terminal bud
-    std::vector<Bud> lateralBuds; // List of lateral buds. Size() is the number of buds, obviously
+    std::vector<Bud> buds; // List of buds. Last bud is always the terminal bud.
     glm::vec3 growthDirection; // World space direction in which this branch is oriented
     float radius; // Branch radius. Computed using pipe model
     unsigned int axisOrder; // Order n (0, 1, ..., n) of this axis. Original trunk of a tree is 0, each branch supported by this branch has order 1, etc
     int prevBranchIndex; // Index of the branch supporting this one in the 
 
 public:
-    TreeBranch(const int ao) :
-        terminalBud({ glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f), BUD_OCCUPANCY_RADIUS, 0.0f, 0.0f, -1, TERMINAL, DORMANT }),
-          growthDirection(glm::vec3(0.0f, 1.0f, 0.0f)), radius(INITIAL_BRANCH_RADIUS), axisOrder(ao) {
-        lateralBuds = std::vector<Bud>();
-        lateralBuds.reserve(4); // Reserve memory beforehand so we are less likely to have to resize the array later on. Performance test this.
+    TreeBranch(const glm::vec3& p, const int ao) :
+        growthDirection(glm::vec3(0.0f, 1.0f, 0.0f)), radius(INITIAL_BRANCH_RADIUS), axisOrder(ao) {
+        buds = std::vector<Bud>();
+        buds.reserve(4); // Reserve memory beforehand so we are less likely to have to resize the array later on. Performance test this.
+        buds.emplace_back(p, glm::vec3(growthDirection), glm::vec3(0.0f), BUD_OCCUPANCY_RADIUS, 0.0f, 0.0f, 0.0f, -1, 0.0f, TERMINAL, DORMANT); // add the terminal bud for this branch
         // maybe make the reserve value a function of the iterations, later iterations will probably be shorter than an early branch that has
         // been around for awhile?
+    }
+    // Adds a certain number of axillary buds to the list of buds, starting at the index just before the terminal bud
+    void AddAxillaryBuds(const int numBuds, const float internodeLength) {
+        // Create a temporary list of Buds that will be inserted in this branch's list of buds
+        std::vector<Bud> newBuds = std::vector<Bud>();
+        
+        // Axillary Buds will all make an angle of 137.5 degrees (the Golden Angle) with the direction of the given branch.
+        const glm::quat branchQuat = glm::angleAxis(glm::radians(137.5f), glm::normalize(glm::cross(growthDirection, WORLD_UP_VECTOR)));
+        const glm::mat4 budRotMat = glm::toMat4(branchQuat);
+        glm::vec3 budGrowthDir = glm::normalize(glm::vec3(budRotMat * glm::vec4(growthDirection, 0.0f)));
+
+        // buds will be inserted @ current terminal bud pos + (float)b * budGrowthDir * internodeLength
+        Bud& terminalBud = buds[buds.size() - 1]; // last bud is always the terminal bud
+        for (int b = 0; b < numBuds; ++b) {
+            newBuds.emplace_back(terminalBud.point + (float)b * budGrowthDir * internodeLength, budGrowthDir, glm::vec3(0.0f),
+                                   BUD_OCCUPANCY_RADIUS, 0.0f, 0.0f, 0.0f, -1, 0.0f, LATERAL, DORMANT);
+        }
+        // Update terminal bud position 
+        terminalBud.point = terminalBud.point + (float)(newBuds.size()) * budGrowthDir * internodeLength;
+        buds.insert(buds.end() - 1, newBuds.begin(), newBuds.end()); // this might crash if only the terminal bud is in the list, not sure
     }
 };
 
@@ -118,28 +156,29 @@ class Tree {
 private:
     std::vector<TreeBranch> branches;
 public:
-    Tree() {
+    Tree(const glm::vec3& p) {
         branches.reserve(256); // Reserve a lot so we don't have to resize often. This vector will definitely expand a lot.
-        initializeTree();
+        InitializeTree(p);
     }
-    void initializeTree() { branches.emplace_back(TreeBranch(0)); } // Init a tree to be a single branch
-    void iterateGrowth(const int numIters, std::vector<AttractorPoint>& attractorPoints) {
+    void InitializeTree(const glm::vec3& p) { branches.emplace_back(TreeBranch(p, 0)); } // Init a tree to be a single branch
+    void IterateGrowth(const int numIters, std::vector<AttractorPoint>& attractorPoints) {
         for (int n = 0; n < numIters; ++n) {
-            iterateSpaceColonization(attractorPoints); // 1. Compute Q (presence of space/light) and optimal growth direction using space colonization
-            iterateBHModel();                          // 2. Using BH Model, flow resource basipetally and then acropetally
+            IterateSpaceColonization(attractorPoints); // 1. Compute Q (presence of space/light) and optimal growth direction using space colonization
+            ComputeBHModel();                          // 2. Using BH Model, flow resource basipetally and then acropetally
+            AppendNewShoots();                         // 3. Add new shoots using the resource computed in previous step
         }
         
 
         
     }
-    void iterateSpaceColonization(std::vector<AttractorPoint>& attractorPoints) {
+    void IterateSpaceColonization(std::vector<AttractorPoint>& attractorPoints) {
         // 1. Remove all attractor points that are too close to any bud
         for (int br = 0; br < branches.size(); ++br) {
-            const std::vector<Bud>& lateralBuds = branches[br].lateralBuds;
-            for (int bu = 0; bu < lateralBuds.size() + 1; ++bu) { // Add one for the terminal bud
+            const std::vector<Bud>& buds = branches[br].buds;
+            for (int bu = 0; bu < buds.size(); ++bu) {
                 auto attrPtIter = attractorPoints.begin();
                 while (attrPtIter != attractorPoints.end()) {
-                    const Bud& currentBud = (bu != lateralBuds.size()) ? lateralBuds[bu] : branches[br].terminalBud;
+                    const Bud& currentBud = buds[bu];
                     const float budToPtDist = glm::length2(attrPtIter->GetPoint() - currentBud.point);
                     if (budToPtDist < currentBud.occupancyRadius * currentBud.occupancyRadius) {
                         attrPtIter = attractorPoints.erase(attrPtIter); // This attractor point is close to the bud, remove it
@@ -152,44 +191,151 @@ public:
 
         // 2. Compute the optimal growth direction for each bud
         for (int br = 0; br < branches.size(); ++br) {
-            std::vector<Bud>& lateralBuds = branches[br].lateralBuds;
-            const int numLateralBuds = lateralBuds.size();
-            for (int bu = 0; bu < numLateralBuds + 1; ++bu) { // Add one for the terminal bud
+            std::vector<Bud>& buds = branches[br].buds;
+            const int numBuds = buds.size();
+            for (int bu = 0; bu < numBuds; ++bu) {
                 auto attrPtIter = attractorPoints.begin();
-                while (attrPtIter != attractorPoints.end()) {
-                    Bud& currentBud = (bu != numLateralBuds) ? lateralBuds[bu] : branches[br].terminalBud;
-                    const glm::vec3 budToPtDir = attrPtIter->GetPoint() - currentBud.point; // Use current lateral or the terminal bud
-                    const float dotProd = glm::dot(glm::normalize(budToPtDir), branches[br].growthDirection); // TODO: This is only true for terminal buds. Lateral buds should use the "golden angle"
-                    const float budToPtDist2 = glm::length2(budToPtDir);
-                    if (budToPtDist2 < BUD_PERCEPTION_RADIUS * BUD_PERCEPTION_RADIUS && dotProd > std::abs(COS_THETA)) {
-                        // Any given attractor point can only be perceived by one bud - the nearest one.
-                        // If we end up find a bud closer to this attractor point than the previously recorded one,
-                        // update the point accordingly and remove this attractor point's contribution from that bud's
-                        // growth direction vector.
-                        if (budToPtDist2 < attrPtIter->nearestBudDist2) {
-                            attrPtIter->nearestBudDist2 = budToPtDist2;
-                            if (attrPtIter->nearestBudBranchIdx != -1) {
-                                if (attrPtIter->nearestBudIdx != -1) {
-                                    if (attrPtIter->nearestBudIdx != -2) {
-                                        branches[attrPtIter->nearestBudBranchIdx].lateralBuds[attrPtIter->nearestBudIdx].optimalGrowthDir -= budToPtDir;
-                                    } else {
-                                        branches[attrPtIter->nearestBudBranchIdx].terminalBud.optimalGrowthDir -= budToPtDir;
+                while (attrPtIter != attractorPoints.end()) { // if a bud is FORMED_BRANCH, do i not run the alg on it? probs just test, but need to add geometry correctly
+                    Bud& currentBud = buds[bu];
+                    if (currentBud.fate == DORMANT) { // early measure, aka buds wont grow after branching once. TODO also keep in mind that branching points store buds twice.
+                        const glm::vec3 budToPtDir = attrPtIter->GetPoint() - currentBud.point; // Use current lateral or terminal bud
+                        const float dotProd = glm::dot(glm::normalize(budToPtDir), currentBud.branchGrowthDir); // TODO: This is only true for terminal buds. Lateral buds should use the "golden angle"
+                        const float budToPtDist2 = glm::length2(budToPtDir);
+                        if (budToPtDist2 < BUD_PERCEPTION_RADIUS * BUD_PERCEPTION_RADIUS && dotProd > std::abs(COS_THETA)) {
+                            // Any given attractor point can only be perceived by one bud - the nearest one.
+                            // If we end up find a bud closer to this attractor point than the previously recorded one,
+                            // update the point accordingly and remove this attractor point's contribution from that bud's
+                            // growth direction vector.
+                            if (budToPtDist2 < attrPtIter->nearestBudDist2) {
+                                attrPtIter->nearestBudDist2 = budToPtDist2;
+                                if (attrPtIter->nearestBudBranchIdx != -1) {
+                                    if (attrPtIter->nearestBudIdx != -1) {
+                                        branches[attrPtIter->nearestBudBranchIdx].buds[attrPtIter->nearestBudIdx].optimalGrowthDir -= budToPtDir;
                                     }
                                 }
+                                attrPtIter->nearestBudBranchIdx = br;
+                                attrPtIter->nearestBudIdx = bu;
+                                currentBud.optimalGrowthDir += budToPtDir;
                             }
-                            attrPtIter->nearestBudBranchIdx = br;
-                            attrPtIter->nearestBudIdx = (bu != numLateralBuds) ? bu : -2; // -2 flag indicates terminal bud
-                            currentBud.optimalGrowthDir += budToPtDir;
-                        }
 
+                        }
+                        ++attrPtIter;
                     }
-                    ++attrPtIter;
                 }
             }
         }
     }
-    void iterateBHModel() {
+    void ComputeBHModel() { // Perform each pass of the BH Model for resource flow
+        IterateBHModelBasipetalPass();
+        IterateBHModelAcropetalPass();
+    }
 
+    // make this a non-member helper function in the cpp file
+    float ComputeQAccumRecursive(TreeBranch& branch) {
+        float accumQ = 0.0f;
+        for (int bu = 0; bu < branch.buds.size(); ++bu) {
+            Bud& currentBud = branch.buds[bu];
+            switch (currentBud.type) {
+            case TERMINAL:
+                accumQ += currentBud.environmentQuality;
+                break;
+            case LATERAL:
+                // Need to check whether this lateral bud has actually formed a branch
+                switch (currentBud.fate) {
+                case DORMANT:
+                    accumQ += currentBud.environmentQuality;
+                    break;
+                case FORMED_BRANCH:
+                    accumQ += ComputeQAccumRecursive(branches[currentBud.formedBranchIndex]);
+                    break;
+                case FORMED_FLOWER: // double check if we include the resource in this case TODO
+                    accumQ += ComputeQAccumRecursive(branches[currentBud.formedBranchIndex]);
+                    break;
+                default: // includes ABORT case - ignore this bud
+                    break;
+                }
+                break;
+            }
+            currentBud.accumEnvironmentQuality = accumQ;
+            return accumQ;
+        }
+    }
+    void ComputeBHModelBasipetalPass() { // Compute the amount of resource reaching each internode (actually stored in bud above that internode)
+        // Way 1:
+        // Make a recursive function that takes in a particular branch, it should return the incoming Q at the base of the branch.
+        // Should just be a for loop with one recursive call.
+        // This is a little inefficient and I should eventually memoize the information so we don't have to recompute branches.
+        ComputeQAccumRecursive(branches[0]); // ignore return value
+    }
+
+    // make this a non-member helper function in the cpp file
+    void ComputeResourceFlowRecursive(TreeBranch& branch, float resource) {
+        for (int bu = 0; bu < branch.buds.size(); ++bu) {
+            Bud& currentBud = branch.buds[bu];
+            // this all only applies to lateral buds. if terminal, just set the amount of resource
+            // if this bud is dormant, set this bud's amount of resource to whatever the current value is
+            // if this bud is formed flower or abort, set the amount of resource to 0
+            // else, aka if this bud is formed branch, then set the resource amount for this branch to the main axis part of the
+            // formula, and make an additional call on the branch at the appropriate index with the other portion of the eqn
+            // in the formula: v is resource, Qm is the accumQ stored in buds[bu+1]. Ql is accumQ stored branches[currentBud.formedBranchIndex].buds[1].
+            // Yes that is a hard coded index but there should be an invariant that any lateral bud that has no consecutive lateral buds is followed by
+            // a terminal bud.
+            // Note, deciding now that at branching points, a bud will be stored in both branches. It's a little more memory intensive, and I might
+            // change this later, but right now it simplifies things a bit.
+            switch (currentBud.type) {
+            case TERMINAL:
+                currentBud.resourceBH = resource;
+                break;
+            case LATERAL:
+                switch (currentBud.fate) {
+                case DORMANT:
+                    currentBud.resourceBH = resource;
+                    break;
+                case FORMED_BRANCH: { // have to scope for nontrivial cases, apparently: https://stackoverflow.com/questions/10381144/error-c2361-initialization-of-found-is-skipped-by-default-label
+                    TreeBranch& lateralBranch = branches[currentBud.formedBranchIndex];
+                    const float Qm = branch.buds[bu + 1].accumEnvironmentQuality; // Q on main axis
+                    const float Ql = lateralBranch.buds[1].accumEnvironmentQuality; // Q on lateral axis
+                    const float denom = LAMBDA * Qm + (1.0f - LAMBDA) * Ql;
+                    currentBud.resourceBH = resource * (LAMBDA * Qm) / denom; // formula for main axis
+                    ComputeResourceFlowRecursive(lateralBranch, resource * (1.0f - LAMBDA) * Ql / denom); // Call this function on the lateral branch with the other formula
+                    resource = currentBud.resourceBH; // resource reaching the remaining buds in this branch have the attenuated resource
+                    break;
+                }
+                case FORMED_FLOWER:
+                    currentBud.resourceBH = 0.0f;
+                    break;
+                default: // FORMED_FLOWER or ABORT
+                    currentBud.resourceBH = 0.0f;
+                    break;
+
+                }
+                break;
+            }
+        }
+    }
+    void ComputeBHModelAcropetalPass() { // Recursive like basipetal pass, but will definitely need to memoize or something
+        // pass in the first branch and the base amount of resource (v)
+        ComputeResourceFlowRecursive(branches[0], branches[0].buds[branches[0].buds.size() - 1].accumEnvironmentQuality * ALPHA); //probably have to pass in the base v value or something idk rn im tired
+    }
+
+    void AppendNewShoots() {
+        // for each branch, for each bud, compute floor(v). if that's > 0, check if its a terminal bud. if yes, just extend the current axis.
+        // if its a lateral bud, do the hard invariant stuff.
+        // need to compute the new growth axis. use golden angle for lateral buds
+        for (int br = 0; br < branches.size(); ++br) {
+            std::vector<Bud>& buds = branches[br].buds;
+            for (int bu = 0; bu < buds.size(); ++bu) {
+                Bud& currentBud = buds[bu];
+                const int numMetamers = std::floor(currentBud.resourceBH);
+                if (numMetamers > 0) {
+                    const float metamerLength = currentBud.resourceBH / (float)numMetamers;
+                    for (int m = 1; m <= numMetamers; ++m) { // append new shoots/branches in the direction of the bud
+                        // this is going to move memory entirely by copying which is lame but fix later TODO
+                        TreeBranch newBranch = TreeBranch(currentBud.point, branches[br].axisOrder + 1);
+                    }
+                }
+            }
+        }
     }
 };
 
@@ -199,6 +345,7 @@ public:
 };*/
 
 // Tree growth code - will need to be refactored TO ANOTHER FILE PLS ALSO CANT TURN OFF CAPS LOCK RN SO
+// this is now outdated **
 
 class TreeNode {
 private:
@@ -516,6 +663,11 @@ int main() {
     #endif
 
     #endif
+
+
+    // Code for GL stuff
+
+
 
     // Create indices for the attractor points
     std::vector<unsigned int> indices = std::vector<unsigned int>(numPointsIncluded);
