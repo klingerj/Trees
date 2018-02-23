@@ -25,8 +25,8 @@
 
 // Tweak dis
 #define INITIAL_BRANCH_RADIUS 0.1f
-#define BUD_OCCUPANCY_RADIUS 0.1f
-#define BUD_PERCEPTION_RADIUS 0.2f // should be a multiple of the internode length of the branch that the bud is on. Not a define
+#define BUD_OCCUPANCY_RADIUS 0.5f
+#define BUD_PERCEPTION_RADIUS 1.0f // should be a multiple of the internode length of the branch that the bud is on. Not a define
 
 // Used in space colonization
 #define COS_THETA 0.70710678118f
@@ -40,8 +40,8 @@
 #define TROPISM_DIR_WEIGHT 0.5f
 
 // For 5-tree scene, eye and ref: glm::vec3(0.25f, 0.5f, 3.5f), glm::vec3(0.25f, 0.0f, 0.0f
-Camera camera = Camera(glm::vec3(0.125f, 0.4f, 0.325f), glm::vec3(0.0f, 0.4f, 0.0f), 0.7853981634f, // 45 degrees vs 75 degrees
-                          (float)VIEWPORT_WIDTH_INITIAL / VIEWPORT_HEIGHT_INITIAL, 0.01f, 10.0f);
+Camera camera = Camera(glm::vec3(0.125f, 12.0f, 0.75f) * 0.25f, glm::vec3(0.0f, 0.0f, 0.0f), 0.7853981634f, // 45 degrees vs 75 degrees
+                          (float)VIEWPORT_WIDTH_INITIAL / VIEWPORT_HEIGHT_INITIAL, 0.01f, 30.0f);
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     glViewport(0, 0, width, height);
@@ -100,14 +100,15 @@ struct Bud {
     float resourceBH; // amount of available resource reaching this Bud using the BH Model
     int formedBranchIndex; // If this bud's fate is FORMED_BRANCH, this is the index in the Tree's list of branches of that formed branch. -1 o.w.
     float internodeLength;
+    int numNearbyAttrPts;
     BUD_TYPE type;
     BUD_FATE fate;
     
     // Constructor: to allow use with emplace_back() on vectors
     Bud(const glm::vec3& p, const glm::vec3& b, const glm::vec3& d, const float r, const float q, const float aq, const float re,
-        const int i, const float l, BUD_TYPE t, BUD_FATE f) :
+        const int i, const float l, const int n, BUD_TYPE t, BUD_FATE f) :
         point(p), branchGrowthDir(b), optimalGrowthDir(d), occupancyRadius(r), environmentQuality(q), accumEnvironmentQuality(aq), resourceBH(re),
-        formedBranchIndex(i), internodeLength(l), type(t), fate(f) {}
+        formedBranchIndex(i), internodeLength(l), numNearbyAttrPts(n), type(t), fate(f) {}
 };
 
 // Wraps up necessary information regarding a tree branch.
@@ -121,11 +122,11 @@ private: // TODO: make the terminal bud just be the last bud in the one list of 
     int prevBranchIndex; // Index of the branch supporting this one in the 
 
 public:
-    TreeBranch(const glm::vec3& p, const int ao) :
-        growthDirection(glm::vec3(0.0f, 1.0f, 0.0f)), radius(INITIAL_BRANCH_RADIUS), axisOrder(ao) {
+    TreeBranch(const glm::vec3& p, const glm::vec3& d, const int ao, const int bi) :
+        growthDirection(d), radius(INITIAL_BRANCH_RADIUS), axisOrder(ao), prevBranchIndex(bi) {
         buds = std::vector<Bud>();
         buds.reserve(4); // Reserve memory beforehand so we are less likely to have to resize the array later on. Performance test this.
-        buds.emplace_back(p, glm::vec3(growthDirection), glm::vec3(0.0f), BUD_OCCUPANCY_RADIUS, 0.0f, 0.0f, 0.0f, -1, 0.0f, TERMINAL, DORMANT); // add the terminal bud for this branch
+        buds.emplace_back(p, glm::vec3(growthDirection), glm::vec3(0.0f), BUD_OCCUPANCY_RADIUS, 0.0f, 0.0f, 0.0f, -1, 0.0f, 0, TERMINAL, DORMANT); // add the terminal bud for this branch
         // maybe make the reserve value a function of the iterations, later iterations will probably be shorter than an early branch that has
         // been around for awhile?
     }
@@ -133,25 +134,35 @@ public:
         return buds;
     }
     // Adds a certain number of axillary buds to the list of buds, starting at the index just before the terminal bud
-    void AddAxillaryBuds(const int numBuds, const float internodeLength) {
+    void AddAxillaryBuds(const Bud& sourceBud, const int numBuds, const float internodeLength) {
         // Create a temporary list of Buds that will be inserted in this branch's list of buds
         std::vector<Bud> newBuds = std::vector<Bud>();
         
-        // Axillary Buds will all make an angle of 137.5 degrees (the Golden Angle) with the direction of the given branch.
+        // Axillary bud orientation: Golden angle of 137.5 about the growth axis
+        // for now, static 45 degrees from the growth axis
         glm::vec3 crossVec = (std::abs(glm::dot(growthDirection, WORLD_UP_VECTOR)) > 0.99f) ? glm::vec3(1.0f, 0.0f, 0.0f) : WORLD_UP_VECTOR; // avoid glm::cross returning a 0-vector
-        const glm::quat branchQuat = glm::angleAxis(glm::radians(137.5f), glm::normalize(glm::cross(growthDirection, crossVec)));
+        const glm::quat branchQuat = glm::angleAxis(glm::radians(45.0f), glm::normalize(glm::cross(growthDirection, crossVec)));
         const glm::mat4 budRotMat = glm::toMat4(branchQuat);
+
+        // Direction in which the bud itself is oriented
         glm::vec3 budGrowthDir = glm::normalize(glm::vec3(budRotMat * glm::vec4(growthDirection, 0.0f)));
 
-        // buds will be inserted @ current terminal bud pos + (float)b * budGrowthDir * internodeLength
+        // Direction in which growth occurs
+        const glm::vec3 newBudGrowthDir = glm::normalize(sourceBud.branchGrowthDir + GROWTH_DIR_WEIGHT * sourceBud.optimalGrowthDir);
+
+        // buds will be inserted @ current terminal bud pos + (float)b * branchGrowthDir * internodeLength
         Bud& terminalBud = buds[buds.size() - 1]; // last bud is always the terminal bud
         for (int b = 0; b < numBuds; ++b) {
-            newBuds.emplace_back(terminalBud.point + (float)b * budGrowthDir * internodeLength, budGrowthDir, glm::vec3(0.0f),
-                                   BUD_OCCUPANCY_RADIUS, 0.0f, 0.0f, 0.0f, -1, 0.0f, LATERAL, DORMANT);
+            // Account for golden angle here
+            const glm::quat branchQuatGoldenAngle = glm::angleAxis(glm::radians(137.5f * (float)(buds.size() - 1 + b)), growthDirection);
+            const glm::mat4 budRotMatGoldenAngle = glm::toMat4(branchQuatGoldenAngle);
+            const glm::vec3 budGrowthGoldenAngle = glm::normalize(glm::vec3(budRotMatGoldenAngle * glm::vec4(budGrowthDir, 0.0f)));
+            newBuds.emplace_back(terminalBud.point + (float)b * newBudGrowthDir * internodeLength, budGrowthGoldenAngle, glm::vec3(0.0f),
+                                   BUD_OCCUPANCY_RADIUS, 0.0f, 0.0f, 0.0f, -1, 0.0f, 0, LATERAL, DORMANT);
         }
         // Update terminal bud position 
-        terminalBud.point = terminalBud.point + (float)(newBuds.size()) * budGrowthDir * internodeLength;
-        buds.insert(buds.end() - 1, newBuds.begin(), newBuds.end()); // this might crash if only the terminal bud is in the list, not sure
+        terminalBud.point = terminalBud.point + (float)(newBuds.size()) * growthDirection * internodeLength;
+        buds.insert(buds.begin() + buds.size() - 1, newBuds.begin(), newBuds.end()); // this might crash if only the terminal bud is in the list, not sure
     }
 };
 
@@ -159,7 +170,7 @@ public:
 class Tree {
 private:
     std::vector<TreeBranch> branches;
-    inline void InitializeTree(const glm::vec3& p) { branches.emplace_back(TreeBranch(p, 0)); } // Init a tree to be a single branch
+    inline void InitializeTree(const glm::vec3& p) { branches.emplace_back(TreeBranch(p, glm::vec3(0.0f, 1.0f, 0.0f), 0, -1)); } // Init a tree to be a single branch
 public:
     Tree(const glm::vec3& p) {
         branches.reserve(256); // Reserve a lot so we don't have to resize often. This vector will definitely expand a lot.
@@ -173,6 +184,8 @@ public:
             PerformSpaceColonization(attractorPoints); // 1. Compute Q (presence of space/light) and optimal growth direction using space colonization
             ComputeBHModel();                          // 2. Using BH Model, flow resource basipetally and then acropetally
             AppendNewShoots();                         // 3. Add new shoots using the resource computed in previous step
+            ResetState();                              // 4. Prepare all data to be iterated over again, e.g. set accumQ for all buds back to 0
+            if (attractorPoints.size() == 0) { break; }
         }
         
 
@@ -201,13 +214,14 @@ public:
             std::vector<Bud>& buds = branches[br].buds;
             const int numBuds = buds.size();
             for (int bu = 0; bu < numBuds; ++bu) {
+                Bud& currentBud = buds[bu];
                 auto attrPtIter = attractorPoints.begin();
                 while (attrPtIter != attractorPoints.end()) { // if a bud is FORMED_BRANCH, do i not run the alg on it? probs just test, but need to add geometry correctly
-                    Bud& currentBud = buds[bu];
                     if (currentBud.fate == DORMANT) { // early measure, aka buds wont grow after branching once. TODO also keep in mind that branching points store buds twice.
-                        const glm::vec3 budToPtDir = attrPtIter->GetPoint() - currentBud.point; // Use current lateral or terminal bud
-                        const float dotProd = glm::dot(glm::normalize(budToPtDir), currentBud.branchGrowthDir); // TODO: This is only true for terminal buds. Lateral buds should use the "golden angle"
+                        glm::vec3 budToPtDir = attrPtIter->GetPoint() - currentBud.point; // Use current lateral or terminal bud
                         const float budToPtDist2 = glm::length2(budToPtDir);
+                        budToPtDir = glm::normalize(budToPtDir);
+                        const float dotProd = glm::dot(budToPtDir, currentBud.branchGrowthDir);
                         if (budToPtDist2 < BUD_PERCEPTION_RADIUS * BUD_PERCEPTION_RADIUS && dotProd > std::abs(COS_THETA)) {
                             // Any given attractor point can only be perceived by one bud - the nearest one.
                             // If we end up find a bud closer to this attractor point than the previously recorded one,
@@ -215,18 +229,28 @@ public:
                             // growth direction vector.
                             if (budToPtDist2 < attrPtIter->nearestBudDist2) {
                                 attrPtIter->nearestBudDist2 = budToPtDist2;
-                                if (attrPtIter->nearestBudBranchIdx != -1) {
-                                    if (attrPtIter->nearestBudIdx != -1) {
-                                        branches[attrPtIter->nearestBudBranchIdx].buds[attrPtIter->nearestBudIdx].optimalGrowthDir -= budToPtDir;
+                                if (attrPtIter->nearestBudBranchIdx != -1 && attrPtIter->nearestBudIdx != -1) {
+                                    Bud& oldNearestBud = branches[attrPtIter->nearestBudBranchIdx].buds[attrPtIter->nearestBudIdx];
+                                    glm::vec3& oldNearestBudDir = oldNearestBud.optimalGrowthDir * (float)oldNearestBud.numNearbyAttrPts;
+                                    oldNearestBudDir -= budToPtDir;
+                                    if (--oldNearestBud.numNearbyAttrPts > 0) {
+                                        oldNearestBudDir = glm::normalize(oldNearestBudDir);
+                                    } else {
+                                        oldNearestBudDir = glm::vec3(0.0f);
                                     }
                                 }
                                 attrPtIter->nearestBudBranchIdx = br;
                                 attrPtIter->nearestBudIdx = bu;
                                 currentBud.optimalGrowthDir += budToPtDir;
+                                ++currentBud.numNearbyAttrPts;
                             }
 
                         }
                         ++attrPtIter;
+                    }
+                    if (currentBud.numNearbyAttrPts > 0) {
+                        currentBud.optimalGrowthDir = glm::normalize(currentBud.optimalGrowthDir);
+                        currentBud.environmentQuality = 1.0f;
                     }
                 }
             }
@@ -329,18 +353,46 @@ public:
         // for each branch, for each bud, compute floor(v). if that's > 0, check if its a terminal bud. if yes, just extend the current axis.
         // if its a lateral bud, do the hard invariant stuff.
         // need to compute the new growth axis. use golden angle for lateral buds
-        for (int br = 0; br < branches.size(); ++br) {
-            std::vector<Bud>& buds = branches[br].buds;
-            for (int bu = 0; bu < buds.size(); ++bu) {
+        const int numBranches = branches.size();
+        for (int br = 0; br < numBranches; ++br) {
+            TreeBranch& currentBranch = branches[br];
+            std::vector<Bud>& buds = currentBranch.buds;
+            const int numBuds = buds.size();
+            for (int bu = 0; bu < numBuds; ++bu) {
                 Bud& currentBud = buds[bu];
                 const int numMetamers = std::floor(currentBud.resourceBH);
-                if (numMetamers > 0) {
-                    const float metamerLength = currentBud.resourceBH / (float)numMetamers;
-                    for (int m = 1; m <= numMetamers; ++m) { // append new shoots/branches in the direction of the bud
-                        // this is going to move memory entirely by copying which is lame but fix later TODO
-                        TreeBranch newBranch = TreeBranch(currentBud.point, branches[br].axisOrder + 1);
+                const float metamerLength = currentBud.resourceBH / (float)numMetamers * 0.25f; // TODO remove fake scale
+                switch (currentBud.type) {
+                case TERMINAL: {
+                    if (numMetamers > 0) {
+                        currentBranch.AddAxillaryBuds(currentBud, numMetamers, metamerLength);
                     }
+                    break;
                 }
+                case LATERAL: {
+                    if (numMetamers > 0) {
+                        TreeBranch newBranch = TreeBranch(currentBud.point, currentBud.branchGrowthDir, branches[br].axisOrder + 1, br);
+                        newBranch.AddAxillaryBuds(currentBud, numMetamers, metamerLength);
+                        branches.emplace_back(newBranch);
+                        currentBud.fate = FORMED_BRANCH;
+                    }
+                    break;
+                }
+                }
+            }
+        }
+    }
+    void ResetState() {
+        // set stuff to 0 idk
+        for (int br = 0; br < branches.size(); ++br) {
+            std::vector<Bud> buds = branches[br].buds;
+            for (int bu = 0; bu < buds.size(); ++bu) {
+                Bud& currentBud = buds[bu];
+                currentBud.accumEnvironmentQuality = 0.0f;
+                currentBud.environmentQuality = 0.0f;
+                currentBud.numNearbyAttrPts = 0;
+                currentBud.optimalGrowthDir = glm::vec3(0.0f);
+                currentBud.resourceBH = 0.0f;
             }
         }
     }
@@ -426,7 +478,7 @@ int main() {
     // Is it faster to initialize a vector of points with # and value and then set the values, or to push_back values onto an empty list
     // Answer to that: https://stackoverflow.com/questions/32199388/what-is-better-reserve-vector-capacity-preallocate-to-size-or-push-back-in-loo
     // Best options seem to be preallocate or emplace_back with reserve
-    const unsigned int numPoints = 500000;
+    const unsigned int numPoints = 50000;
     unsigned int numPointsIncluded = 0;
     std::vector<glm::vec3> points = std::vector<glm::vec3>();
 
@@ -440,11 +492,11 @@ int main() {
     // Create points
     // Unfortunately, we can't really do any memory preallocating because we don't actually know how many points will be included
     for (unsigned int i = 0; i < numPoints; ++i) {
-        const glm::vec3 p = glm::vec3(dis(rng), dis(rng), dis(rng));
-        if ((p.x * p.x + p.y * p.y + p.z * p.z) < 0.015f /*p.y > 0.2f*/ /*&& (p.x * p.x + p.y * p.y) > 0.2f*/) {
-            points.emplace_back(p + glm::vec3(0.0f, 0.45f, 0.0f));
+        const glm::vec3 p = glm::vec3(dis(rng) * 2.0f, (dis(rng) + 1.0f) * 20.0f, dis(rng) * 2.0f);
+        //if ((p.x * p.x + p.y * p.y + p.z * p.z) < 0.015f /*p.y > 0.2f*/ /*&& (p.x * p.x + p.y * p.y) > 0.2f*/) {
+            points.emplace_back(p + glm::vec3(0.0f, 0.5f, 0.0f));
             ++numPointsIncluded;
-        }
+        //}
     }
 
     // Create the AttractorPoints
@@ -466,7 +518,7 @@ int main() {
     const unsigned int numIters = 2;
 
     // new tree generation
-    Tree tree = Tree(glm::vec3(0.0f));
+    Tree tree = Tree(glm::vec3(0.0f, 0.15f, 0.0f));
     tree.IterateGrowth(numIters, attractorPoints);
     // waow done
 
