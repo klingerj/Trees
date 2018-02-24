@@ -32,7 +32,7 @@
 #define COS_THETA 0.70710678118f
 
 // For BH Model
-#define ALPHA 1.0f // proportionality constant for resource flow computation
+#define ALPHA 1.5f // proportionality constant for resource flow computation
 #define LAMBDA 0.5f
 
 // For addition of new shoots
@@ -40,17 +40,32 @@
 #define TROPISM_DIR_WEIGHT 0.5f
 
 // For 5-tree scene, eye and ref: glm::vec3(0.25f, 0.5f, 3.5f), glm::vec3(0.25f, 0.0f, 0.0f
-Camera camera = Camera(glm::vec3(0.125f, 12.0f, 0.75f) * 0.35f, glm::vec3(0.0f, 0.0f, 0.0f), 0.7853981634f, // 45 degrees vs 75 degrees
-                          (float)VIEWPORT_WIDTH_INITIAL / VIEWPORT_HEIGHT_INITIAL, 0.01f, 30.0f);
+Camera camera = Camera(glm::vec3(0.0f, 0.6f, 0.0f), 0.7853981634f, // 45 degrees vs 75 degrees
+                          (float)VIEWPORT_WIDTH_INITIAL / VIEWPORT_HEIGHT_INITIAL, 0.01f, 30.0f, 0.0f, 0.0f, 1.0f);
+const float camMoveSensitivity = 0.001f;
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     glViewport(0, 0, width, height);
     camera.SetAspect((float)width / height);
 }
 
+// Keyboard controls
 void processInput(GLFWwindow *window) {
-    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
         glfwSetWindowShouldClose(window, true);
+    } else if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
+        camera.TranslateAlongRadius(-camMoveSensitivity);
+    } else if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
+        camera.TranslateAlongRadius(camMoveSensitivity);
+    } else if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
+        camera.RotatePhi(-camMoveSensitivity);
+    } else if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
+        camera.RotatePhi(camMoveSensitivity);
+    } else if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) {
+        camera.RotateTheta(-camMoveSensitivity);
+    } else if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) {
+        camera.RotateTheta(camMoveSensitivity);
+    }
 }
 
 class AttractorPoint {
@@ -174,7 +189,7 @@ private:
     inline void InitializeTree(const glm::vec3& p) { branches.emplace_back(TreeBranch(p, glm::vec3(0.0f, 1.0f, 0.0f), 0, -1)); } // Init a tree to be a single branch
 public:
     Tree(const glm::vec3& p) {
-        branches.reserve(256); // Reserve a lot so we don't have to resize often. This vector will definitely expand a lot.
+        branches.reserve(1024); // Reserve a lot so we don't have to resize often. This vector will definitely expand a lot.
         InitializeTree(p);
     }
     inline const std::vector<TreeBranch>& GetBranches() const {
@@ -347,15 +362,18 @@ public:
     }
 
     void AppendNewShoots() {
+        //std::cout << "in appendNewShoots()" << std::endl;
         // for each branch, for each bud, compute floor(v). if that's > 0, check if its a terminal bud. if yes, just extend the current axis.
         // if its a lateral bud, do the hard invariant stuff.
         // need to compute the new growth axis. use golden angle for lateral buds
         const int numBranches = branches.size();
         for (int br = 0; br < numBranches; ++br) {
+            //std::cout << "Br: " << br << std::endl;
             TreeBranch& currentBranch = branches[br];
             std::vector<Bud>& buds = currentBranch.buds;
             const int numBuds = buds.size();
             for (int bu = 0; bu < numBuds; ++bu) {
+                //std::cout << "Bu: " << bu << std::endl;
                 Bud& currentBud = buds[bu];
                 const int numMetamers = std::floor(currentBud.resourceBH);
                 const float metamerLength = currentBud.resourceBH / (float)numMetamers * 0.25f; // TODO remove fake scale *************
@@ -475,7 +493,7 @@ int main() {
     // Is it faster to initialize a vector of points with # and value and then set the values, or to push_back values onto an empty list
     // Answer to that: https://stackoverflow.com/questions/32199388/what-is-better-reserve-vector-capacity-preallocate-to-size-or-push-back-in-loo
     // Best options seem to be preallocate or emplace_back with reserve
-    const unsigned int numPoints = 10000;
+    const unsigned int numPoints = 15000;
     unsigned int numPointsIncluded = 0;
     std::vector<glm::vec3> points = std::vector<glm::vec3>();
 
@@ -489,9 +507,9 @@ int main() {
     // Create points
     // Unfortunately, we can't really do any memory preallocating because we don't actually know how many points will be included
     for (unsigned int i = 0; i < numPoints; ++i) {
-        const glm::vec3 p = glm::vec3(dis(rng) * 2.0f, (dis(rng) + 1.0f) * 20.0f, dis(rng) * 2.0f);
+        const glm::vec3 p = glm::vec3(dis(rng) * 3.0f, (dis(rng) + 1.0f) * 4.0f, dis(rng) * 3.0f);
         //if ((p.x * p.x + p.y * p.y + p.z * p.z) < 0.015f /*p.y > 0.2f*/ /*&& (p.x * p.x + p.y * p.y) > 0.2f*/) {
-            points.emplace_back(p + glm::vec3(0.0f, 0.5f, 0.0f));
+            points.emplace_back(p + glm::vec3(0.0f, 1.0f, 0.0f));
             ++numPointsIncluded;
         //}
     }
@@ -512,7 +530,7 @@ int main() {
     treeNodes.emplace_back(TreeNode(glm::vec3(0.01f, 0.28f, 0.0f), branchInflDist, -1, 0));
     //treeNodes.emplace_back(TreeNode(glm::vec3(0.1f, 0.38f, 0.0f), branchInflDist, 0, 0));
 
-    const unsigned int numIters = 5;
+    const unsigned int numIters = 6;
 
     // new tree generation
     Tree tree = Tree(glm::vec3(0.0f, 0.15f, 0.0f));
