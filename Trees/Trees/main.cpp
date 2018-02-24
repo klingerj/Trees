@@ -40,7 +40,7 @@
 #define TROPISM_DIR_WEIGHT 0.5f
 
 // For 5-tree scene, eye and ref: glm::vec3(0.25f, 0.5f, 3.5f), glm::vec3(0.25f, 0.0f, 0.0f
-Camera camera = Camera(glm::vec3(0.125f, 12.0f, 0.75f) * 0.25f, glm::vec3(0.0f, 0.0f, 0.0f), 0.7853981634f, // 45 degrees vs 75 degrees
+Camera camera = Camera(glm::vec3(0.125f, 12.0f, 0.75f) * 0.35f, glm::vec3(0.0f, 0.0f, 0.0f), 0.7853981634f, // 45 degrees vs 75 degrees
                           (float)VIEWPORT_WIDTH_INITIAL / VIEWPORT_HEIGHT_INITIAL, 0.01f, 30.0f);
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
@@ -126,7 +126,7 @@ public:
         growthDirection(d), radius(INITIAL_BRANCH_RADIUS), axisOrder(ao), prevBranchIndex(bi) {
         buds = std::vector<Bud>();
         buds.reserve(4); // Reserve memory beforehand so we are less likely to have to resize the array later on. Performance test this.
-        buds.emplace_back(p, glm::vec3(growthDirection), glm::vec3(0.0f), BUD_OCCUPANCY_RADIUS, 0.0f, 0.0f, 0.0f, -1, 0.0f, 0, TERMINAL, DORMANT); // add the terminal bud for this branch
+        buds.emplace_back(p, glm::vec3(growthDirection), glm::vec3(0.0f), BUD_OCCUPANCY_RADIUS, 0.0f, 0.0f, 0.0f, -1, 0.5f, 0, TERMINAL, DORMANT); // add the terminal bud for this branch. Applies a prelim internode length (tweak, TODO) ***
         // maybe make the reserve value a function of the iterations, later iterations will probably be shorter than an early branch that has
         // been around for awhile?
     }
@@ -141,7 +141,7 @@ public:
         // Axillary bud orientation: Golden angle of 137.5 about the growth axis
         // for now, static 45 degrees from the growth axis
         glm::vec3 crossVec = (std::abs(glm::dot(growthDirection, WORLD_UP_VECTOR)) > 0.99f) ? glm::vec3(1.0f, 0.0f, 0.0f) : WORLD_UP_VECTOR; // avoid glm::cross returning a 0-vector
-        const glm::quat branchQuat = glm::angleAxis(glm::radians(45.0f), glm::normalize(glm::cross(growthDirection, crossVec)));
+        const glm::quat branchQuat = glm::angleAxis(glm::radians(/*45.0f*/20.0f), glm::normalize(glm::cross(growthDirection, crossVec)));
         const glm::mat4 budRotMat = glm::toMat4(branchQuat);
 
         // Direction in which the bud itself is oriented
@@ -158,10 +158,11 @@ public:
             const glm::mat4 budRotMatGoldenAngle = glm::toMat4(branchQuatGoldenAngle);
             const glm::vec3 budGrowthGoldenAngle = glm::normalize(glm::vec3(budRotMatGoldenAngle * glm::vec4(budGrowthDir, 0.0f)));
             newBuds.emplace_back(terminalBud.point + (float)b * newBudGrowthDir * internodeLength, budGrowthGoldenAngle, glm::vec3(0.0f),
-                                   BUD_OCCUPANCY_RADIUS, 0.0f, 0.0f, 0.0f, -1, 0.0f, 0, LATERAL, DORMANT);
+                                   BUD_OCCUPANCY_RADIUS, 0.0f, 0.0f, 0.0f, -1, internodeLength, 0, LATERAL, DORMANT);
         }
         // Update terminal bud position 
         terminalBud.point = terminalBud.point + (float)(newBuds.size()) * growthDirection * internodeLength;
+        terminalBud.internodeLength = internodeLength;
         buds.insert(buds.begin() + buds.size() - 1, newBuds.begin(), newBuds.end()); // this might crash if only the terminal bud is in the list, not sure
     }
 };
@@ -184,12 +185,9 @@ public:
             PerformSpaceColonization(attractorPoints); // 1. Compute Q (presence of space/light) and optimal growth direction using space colonization
             ComputeBHModel();                          // 2. Using BH Model, flow resource basipetally and then acropetally
             AppendNewShoots();                         // 3. Add new shoots using the resource computed in previous step
-            ResetState();                              // 4. Prepare all data to be iterated over again, e.g. set accumQ for all buds back to 0
+            ResetState();                              // 4. Prepare all data to be iterated over again, e.g. set accumQ / resrouceBH for all buds back to 0
             if (attractorPoints.size() == 0) { break; }
         }
-        
-
-        
     }
     void PerformSpaceColonization(std::vector<AttractorPoint>& attractorPoints) {
         // 1. Remove all attractor points that are too close to any bud
@@ -200,7 +198,7 @@ public:
                 while (attrPtIter != attractorPoints.end()) {
                     const Bud& currentBud = buds[bu];
                     const float budToPtDist = glm::length2(attrPtIter->GetPoint() - currentBud.point);
-                    if (budToPtDist < currentBud.occupancyRadius * currentBud.occupancyRadius) {
+                    if (budToPtDist < 4.0f * currentBud.internodeLength * currentBud.internodeLength) { // 2x internode length
                         attrPtIter = attractorPoints.erase(attrPtIter); // This attractor point is close to the bud, remove it
                     } else {
                         ++attrPtIter;
@@ -222,7 +220,7 @@ public:
                         const float budToPtDist2 = glm::length2(budToPtDir);
                         budToPtDir = glm::normalize(budToPtDir);
                         const float dotProd = glm::dot(budToPtDir, currentBud.branchGrowthDir);
-                        if (budToPtDist2 < BUD_PERCEPTION_RADIUS * BUD_PERCEPTION_RADIUS && dotProd > std::abs(COS_THETA)) {
+                        if (budToPtDist2 < (16.0f * currentBud.internodeLength * currentBud.internodeLength) && dotProd > std::abs(COS_THETA)) { // 4x internode length
                             // Any given attractor point can only be perceived by one bud - the nearest one.
                             // If we end up find a bud closer to this attractor point than the previously recorded one,
                             // update the point accordingly and remove this attractor point's contribution from that bud's
@@ -244,10 +242,9 @@ public:
                                 currentBud.optimalGrowthDir += budToPtDir;
                                 ++currentBud.numNearbyAttrPts;
                             }
-
                         }
-                        ++attrPtIter;
                     }
+                    ++attrPtIter;
                     if (currentBud.numNearbyAttrPts > 0) {
                         currentBud.optimalGrowthDir = glm::normalize(currentBud.optimalGrowthDir);
                         currentBud.environmentQuality = 1.0f;
@@ -264,7 +261,7 @@ public:
     // make this a non-member helper function in the cpp file
     float ComputeQAccumRecursive(TreeBranch& branch) {
         float accumQ = 0.0f;
-        for (int bu = 0; bu < branch.buds.size(); ++bu) {
+        for (int bu = branch.buds.size() - 1; bu >= 0; --bu) { // iterate in reverse
             Bud& currentBud = branch.buds[bu];
             switch (currentBud.type) {
             case TERMINAL:
@@ -288,8 +285,8 @@ public:
                 break;
             }
             currentBud.accumEnvironmentQuality = accumQ;
-            return accumQ;
         }
+        return accumQ;
     }
     void ComputeBHModelBasipetalPass() { // Compute the amount of resource reaching each internode (actually stored in bud above that internode)
         // Way 1:
@@ -346,7 +343,7 @@ public:
     }
     void ComputeBHModelAcropetalPass() { // Recursive like basipetal pass, but will definitely need to memoize or something
         // pass in the first branch and the base amount of resource (v)
-        ComputeResourceFlowRecursive(branches[0], branches[0].buds[branches[0].buds.size() - 1].accumEnvironmentQuality * ALPHA); //probably have to pass in the base v value or something idk rn im tired
+        ComputeResourceFlowRecursive(branches[0], branches[0].buds[0].accumEnvironmentQuality * ALPHA);
     }
 
     void AppendNewShoots() {
@@ -361,7 +358,7 @@ public:
             for (int bu = 0; bu < numBuds; ++bu) {
                 Bud& currentBud = buds[bu];
                 const int numMetamers = std::floor(currentBud.resourceBH);
-                const float metamerLength = currentBud.resourceBH / (float)numMetamers * 0.25f; // TODO remove fake scale
+                const float metamerLength = currentBud.resourceBH / (float)numMetamers * 0.25f; // TODO remove fake scale *************
                 switch (currentBud.type) {
                 case TERMINAL: {
                     if (numMetamers > 0) {
@@ -375,6 +372,7 @@ public:
                         newBranch.AddAxillaryBuds(currentBud, numMetamers, metamerLength);
                         branches.emplace_back(newBranch);
                         currentBud.fate = FORMED_BRANCH;
+                        currentBud.formedBranchIndex = branches.size() - 1;
                     }
                     break;
                 }
@@ -383,9 +381,8 @@ public:
         }
     }
     void ResetState() {
-        // set stuff to 0 idk
         for (int br = 0; br < branches.size(); ++br) {
-            std::vector<Bud> buds = branches[br].buds;
+            std::vector<Bud>& buds = branches[br].buds;
             for (int bu = 0; bu < buds.size(); ++bu) {
                 Bud& currentBud = buds[bu];
                 currentBud.accumEnvironmentQuality = 0.0f;
@@ -478,7 +475,7 @@ int main() {
     // Is it faster to initialize a vector of points with # and value and then set the values, or to push_back values onto an empty list
     // Answer to that: https://stackoverflow.com/questions/32199388/what-is-better-reserve-vector-capacity-preallocate-to-size-or-push-back-in-loo
     // Best options seem to be preallocate or emplace_back with reserve
-    const unsigned int numPoints = 50000;
+    const unsigned int numPoints = 10000;
     unsigned int numPointsIncluded = 0;
     std::vector<glm::vec3> points = std::vector<glm::vec3>();
 
@@ -515,7 +512,7 @@ int main() {
     treeNodes.emplace_back(TreeNode(glm::vec3(0.01f, 0.28f, 0.0f), branchInflDist, -1, 0));
     //treeNodes.emplace_back(TreeNode(glm::vec3(0.1f, 0.38f, 0.0f), branchInflDist, 0, 0));
 
-    const unsigned int numIters = 2;
+    const unsigned int numIters = 5;
 
     // new tree generation
     Tree tree = Tree(glm::vec3(0.0f, 0.15f, 0.0f));
