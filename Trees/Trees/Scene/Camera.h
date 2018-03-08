@@ -1,8 +1,7 @@
 #pragma once
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
-
-#define WORLD_UP_VECTOR glm::vec3(0.0f, 1.0f, 0.0f)
+#include "Globals.h"
 
 class Camera {
 private:

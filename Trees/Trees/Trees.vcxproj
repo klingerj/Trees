@@ -87,6 +87,7 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <AdditionalOptions>/std:c++latest %(AdditionalOptions)</AdditionalOptions>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
     </ClCompile>
     <Link>
       <AdditionalDependencies>$(SolutionDir)..\Libraries\glfw-3.2.1\lib\glfw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -98,6 +99,7 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <AdditionalOptions>/std:c++latest %(AdditionalOptions)</AdditionalOptions>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
     </ClCompile>
     <Link>
       <AdditionalDependencies>opengl32.lib;$(SolutionDir)..\Libraries\glfw-3.2.1\lib\glfw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -139,6 +141,7 @@
     <ClCompile Include="OpenGL\ShaderProgram.cpp" />
     <ClCompile Include="Scene\Camera.cpp" />
     <ClCompile Include="Scene\Mesh.cpp" />
+    <ClCompile Include="Scene\Tree.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\mesh-frag.frag" />
@@ -151,7 +154,9 @@
   <ItemGroup>
     <ClInclude Include="OpenGL\ShaderProgram.h" />
     <ClInclude Include="Scene\Camera.h" />
+    <ClInclude Include="Scene\Globals.h" />
     <ClInclude Include="Scene\Mesh.h" />
+    <ClInclude Include="Scene\Tree.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
