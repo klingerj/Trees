@@ -271,8 +271,8 @@ public:
         // 2. Compute the optimal growth direction for each bud
         for (int br = 0; br < branches.size(); ++br) {
             std::vector<Bud>& buds = branches[br].buds;
-            const int numBuds = buds.size();
-            for (int bu = 0; bu < numBuds; ++bu) {
+            const unsigned int numBuds = (unsigned int)buds.size();
+            for (unsigned int bu = 0; bu < numBuds; ++bu) {
                 Bud& currentBud = buds[bu];
                 auto attrPtIter = attractorPoints.begin();
                 while (attrPtIter != attractorPoints.end()) { // if a bud is FORMED_BRANCH, do i not run the alg on it? probs just test, but need to add geometry correctly
@@ -323,7 +323,7 @@ public:
     // make this a non-member helper function in the cpp file
     float ComputeQAccumRecursive(TreeBranch& branch) {
         float accumQ = 0.0f;
-        for (int bu = branch.buds.size() - 1; bu >= 0; --bu) { // iterate in reverse
+        for (unsigned int bu = (unsigned int)branch.buds.size() - 1; bu >= 0; --bu) { // iterate in reverse
             Bud& currentBud = branch.buds[bu];
             switch (currentBud.type) {
             case TERMINAL:
@@ -415,14 +415,14 @@ public:
         // for each branch, for each bud, compute floor(v). if that's > 0, check if its a terminal bud. if yes, just extend the current axis.
         // if its a lateral bud, do the hard invariant stuff.
         // need to compute the new growth axis. use golden angle for lateral buds
-        const int numBranches = branches.size();
-        for (int br = 0; br < numBranches; ++br) {
+        const unsigned int numBranches = (unsigned int)branches.size();
+        for (unsigned int br = 0; br < numBranches; ++br) {
             TreeBranch& currentBranch = branches[br];
             std::vector<Bud>& buds = currentBranch.buds;
-            const int numBuds = buds.size();
-            for (int bu = 0; bu < numBuds; ++bu) {
+            const unsigned int numBuds = (unsigned int)buds.size();
+            for (unsigned int bu = 0; bu < numBuds; ++bu) {
                 Bud& currentBud = buds[bu];
-                const int numMetamers = std::floor(currentBud.resourceBH);
+                const int numMetamers = static_cast<int>(std::floor(currentBud.resourceBH));
                 const float metamerLength = currentBud.resourceBH / (float)numMetamers * 0.35f; // TODO remove fake scale *************
                 switch (currentBud.type) {
                 case TERMINAL: {
@@ -437,7 +437,7 @@ public:
                         newBranch.AddAxillaryBuds(currentBud, numMetamers, metamerLength);
                         branches.emplace_back(newBranch);
                         currentBud.fate = FORMED_BRANCH;
-                        currentBud.formedBranchIndex = branches.size() - 1;
+                        currentBud.formedBranchIndex = (int)branches.size() - 1;
                     }
                     break;
                 }
@@ -449,7 +449,7 @@ public:
     // Using the "pipe model" described in the paper, compute the radius of each branch
     float ComputeBranchRadiiRecursive(TreeBranch& branch) {
         float branchRadius = MINIMUM_BRANCH_RADIUS;
-        for (int bu = branch.buds.size() - 1; bu >= 0; --bu) { // iterate in reverse
+        for (unsigned int bu = (unsigned int)branch.buds.size() - 1; bu >= 0; --bu) { // iterate in reverse
             Bud& currentBud = branch.buds[bu];
             switch (currentBud.type) {
             case TERMINAL:
