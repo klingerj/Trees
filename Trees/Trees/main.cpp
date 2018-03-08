@@ -13,8 +13,8 @@
 #include <random>
 
 // For performance analysis / timing
-//#include <chrono>
-//#include <ctime>
+#include <chrono>
+#include <ctime>
 
 #define GLM_FORCE_RADIANS
 #define VIEWPORT_WIDTH_INITIAL 800
@@ -40,10 +40,11 @@
 #define TROPISM_VECTOR glm::vec3(0.0f, -1.0f, 0.0f)
 
 // The radius of the outermost branches on the tree
-#define MINIMUM_BRANCH_RADIUS 0.7f
-#define PIPE_EXPONENT 2.7f // somewhere between 2 and 3 usually according to the paper
+// this doesnt work!!!!
+#define MINIMUM_BRANCH_RADIUS 1.0f
+#define PIPE_EXPONENT 1.0f // somewhere between 2 and 3 usually according to the paper
 
-#define NUM_ITERATIONS 4
+#define NUM_ITERATIONS 3
 
 // For 5-tree scene, eye and ref: glm::vec3(0.25f, 0.5f, 3.5f), glm::vec3(0.25f, 0.0f, 0.0f
 Camera camera = Camera(glm::vec3(0.0f, 3.0f, 0.0f), 0.7853981634f, // 45 degrees vs 75 degrees
@@ -207,13 +208,46 @@ public:
     }
     void IterateGrowth(const int numIters, std::vector<AttractorPoint>& attractorPoints) {
         for (int n = 0; n < numIters; ++n) {
+
+            std::cout << "Iteration #: " << n << std::endl;
+
+            auto start = std::chrono::system_clock::now();
             PerformSpaceColonization(attractorPoints); // 1. Compute Q (presence of space/light) and optimal growth direction using space colonization
+            auto end = std::chrono::system_clock::now();
+            std::chrono::duration<double> elapsed_seconds = end - start;
+            std::time_t end_time = std::chrono::system_clock::to_time_t(end);
+            std::cout << "Elapsed time for Space Colonization: " << elapsed_seconds.count() << "s\n";
+            
+            start = std::chrono::system_clock::now();
             ComputeBHModel();                          // 2. Using BH Model, flow resource basipetally and then acropetally
+            end = std::chrono::system_clock::now();
+            elapsed_seconds = end - start;
+            end_time = std::chrono::system_clock::to_time_t(end);
+            std::cout << "Elapsed time for Computing BH Model (both passes): " << elapsed_seconds.count() << "s\n";
+
+            start = std::chrono::system_clock::now();
             AppendNewShoots();                         // 3. Add new shoots using the resource computed in previous step
+            end = std::chrono::system_clock::now();
+            elapsed_seconds = end - start;
+            end_time = std::chrono::system_clock::to_time_t(end);
+            std::cout << "Elapsed time for Appending New Shoots: " << elapsed_seconds.count() << "s\n";
+
+            start = std::chrono::system_clock::now();
             ResetState();                              // 4. Prepare all data to be iterated over again, e.g. set accumQ / resrouceBH for all buds back to 0
+            end = std::chrono::system_clock::now();
+            elapsed_seconds = end - start;
+            end_time = std::chrono::system_clock::to_time_t(end);
+            std::cout << "Elapsed time for State Resetting: " << elapsed_seconds.count() << "s\n\n";
+
             if (attractorPoints.size() == 0) { break; }
         }
+
+        auto start = std::chrono::system_clock::now();
         ComputeBranchRadii();
+        auto end = std::chrono::system_clock::now();
+        std::chrono::duration<double> elapsed_seconds = end - start;
+        std::time_t end_time = std::chrono::system_clock::to_time_t(end);
+        std::cout << "Elapsed time for Computing Branch Radii: " << elapsed_seconds.count() << "s\n";
     }
     void PerformSpaceColonization(std::vector<AttractorPoint>& attractorPoints) {
         // 1. Remove all attractor points that are too close to any bud
@@ -432,7 +466,6 @@ public:
                     branchRadius = std::pow(branchRadius, PIPE_EXPONENT) + std::pow(ComputeBranchRadiiRecursive(branches[currentBud.formedBranchIndex]), PIPE_EXPONENT);
                     break;
                 case FORMED_FLOWER:
-                    //branchRadius += std::pow(ComputeQAccumRecursive(branches[currentBud.formedBranchIndex]), PIPE_EXPONENT
                     // don't change radius for now?
                     break;
                 default: // includes the ABORT case of bud fate
@@ -442,7 +475,7 @@ public:
             }
             }
             currentBud.branchRadius = branchRadius;
-            std::cout << "BRANCH RADIUS SET TO: " << branchRadius << std::endl;
+            //std::cout << "BRANCH RADIUS SET TO: " << branchRadius << std::endl;
         }
         return branchRadius;
     }
@@ -518,6 +551,7 @@ int main() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_SAMPLES, 4);
 
     GLFWwindow* window = glfwCreateWindow(VIEWPORT_WIDTH_INITIAL, VIEWPORT_HEIGHT_INITIAL, "Trees", NULL, NULL);
     if (window == NULL) {
@@ -555,7 +589,7 @@ int main() {
 
     std::uniform_real_distribution<float> dis(-1.0f, 1.0f);
 
-    // Create points
+    auto start = std::chrono::system_clock::now();
     // Unfortunately, we can't really do any memory preallocating because we don't actually know how many points will be included
     for (unsigned int i = 0; i < numPoints; ++i) {
         const glm::vec3 p = glm::vec3(dis(rng) * 5.0f, dis(rng) * 5.0f, dis(rng) * 5.0f); // for big cube growth chamber: scales of 10, 20, 10
@@ -564,18 +598,27 @@ int main() {
             ++numPointsIncluded;
         }
     }
-
-    // Create the AttractorPoints
+    // Create the actual AttractorPoints
     const float killDist = 0.05f;
     std::vector<AttractorPoint> attractorPoints = std::vector<AttractorPoint>();
     attractorPoints.reserve(numPointsIncluded);
     for (unsigned int i = 0; i < numPointsIncluded; ++i) {
         attractorPoints.emplace_back(AttractorPoint(points[i], killDist));
     }
+    auto end = std::chrono::system_clock::now();
+    std::chrono::duration<double> elapsed_seconds = end - start;
+    std::time_t end_time = std::chrono::system_clock::to_time_t(end);
+    std::cout << "Elapsed time for Attractor Point Generation: " << elapsed_seconds.count() << "s\n";
 
     // new tree generation
     Tree tree = Tree(glm::vec3(0.0f, 0.0f, 0.0f));
+
+    start = std::chrono::system_clock::now();
     tree.IterateGrowth(NUM_ITERATIONS, attractorPoints);
+    end = std::chrono::system_clock::now();
+    elapsed_seconds = end - start;
+    end_time = std::chrono::system_clock::to_time_t(end);
+    std::cout << "Total Elapsed time for Tree Generation: " << elapsed_seconds.count() << "s\n";
 
     // Code for GL stuff
 
@@ -590,6 +633,8 @@ int main() {
     std::vector<glm::vec3> cubePoints;
     std::vector<glm::vec3> cubeNormals;
     std::vector<unsigned int> cubeIndices;
+
+    start = std::chrono::system_clock::now();
 
     ///Positions
     //Front face
@@ -664,9 +709,16 @@ int main() {
         cubeIndices.emplace_back(i * 4 + 3);
     }
 
+    end = std::chrono::system_clock::now();
+    elapsed_seconds = end - start;
+    end_time = std::chrono::system_clock::to_time_t(end);
+    std::cout << "Elapsed time for Cube Primitive Generation: " << elapsed_seconds.count() << "s\n";
+
     // End cube generation
 
     // GL code
+
+    start = std::chrono::system_clock::now();
 
     // Vectors of stuff to render
     #define INTERNODE_CUBES
@@ -700,9 +752,9 @@ int main() {
 
             // Back to rotation
 
-            // orientation is messed up?
+            // orientation is messed up in certain cases still...
             const bool axesAreAligned = std::abs(glm::dot(branchAxis, WORLD_UP_VECTOR)) > 0.99f;
-            glm::vec3 crossVec = axesAreAligned ? glm::vec3(1.0f, 0.0f, 0.0f) : WORLD_UP_VECTOR; // avoid glm::cross returning a 0-vector
+            glm::vec3 crossVec = axesAreAligned ? glm::vec3(1.0f, 0.0f, 0.0f) : WORLD_UP_VECTOR; // avoid glm::cross returning a nan or 0-vector
             const glm::vec3 axis = glm::normalize(glm::cross(crossVec, branchAxis));
             const float angle = std::acos(glm::dot(branchAxis, WORLD_UP_VECTOR));
 
@@ -713,16 +765,14 @@ int main() {
             const glm::vec3 translation = internodeEndPoint - 0.5f * branchAxis * currentBud.internodeLength;
 
             // Create an overall transformation matrix of translation and rotation
-            // this is where we would use the computed pipe radius
-            //std::cout << "Bud branch radius: " << currentBud.branchRadius << std::endl;
-            branchTransform = glm::translate(glm::mat4(1.0f), translation) * branchTransform * glm::scale(glm::mat4(1.0f), glm::vec3(currentBud.branchRadius * 0.001f, currentBud.internodeLength * 0.5f, currentBud.branchRadius * 0.001f));
+            branchTransform = glm::translate(glm::mat4(1.0f), translation) * branchTransform * glm::scale(glm::mat4(1.0f), glm::vec3(currentBud.branchRadius * 0.01f, currentBud.internodeLength * 0.5f, currentBud.branchRadius * 0.01f));
 
             std::vector<glm::vec3> cubePointsTrans = std::vector<glm::vec3>();
             std::vector<glm::vec3> cubeNormalsTrans = std::vector<glm::vec3>();
             // Interleave VBO data or nah
             for (int i = 0; i < cubePoints.size(); ++i) {
                 cubePointsTrans.emplace_back(glm::vec3(branchTransform * glm::vec4(cubePoints[i], 1.0f)));
-                glm::vec3 transformedNormal = glm::vec3(glm::inverse(glm::transpose(branchTransform)) * glm::vec4(cubeNormals[i], 0.0f));
+                glm::vec3 transformedNormal = glm::normalize(glm::vec3(glm::inverse(glm::transpose(branchTransform)) * glm::vec4(cubeNormals[i], 0.0f)));
                 cubeNormalsTrans.emplace_back(transformedNormal);
             }
 
@@ -750,6 +800,13 @@ int main() {
     for (int i = 0; i < budPoints.size(); ++i) {
         budIndices.emplace_back(i);
     }
+
+    end = std::chrono::system_clock::now();
+    elapsed_seconds = end - start;
+    end_time = std::chrono::system_clock::to_time_t(end);
+    std::cout << "Elapsed time for Tree VBO Info Creation: " << elapsed_seconds.count() << "s\n";
+
+    start = std::chrono::system_clock::now();
 
     /// GL calls and drawing
 
@@ -847,6 +904,12 @@ int main() {
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
     glEnableVertexAttribArray(0);
 
+    end = std::chrono::system_clock::now();
+    elapsed_seconds = end - start;
+    end_time = std::chrono::system_clock::to_time_t(end);
+    std::cout << "Elapsed time for GL calls and ShaderPrograms and VAO/VBO/EBO Creation: " << elapsed_seconds.count() << "s\n";
+
+
 
     // This was TinyOBJ Debugging
     /*for (int i = 0; i < m.GetVertices().size(); i++) {
@@ -880,10 +943,7 @@ int main() {
     glLineWidth(1);
     glEnable(GL_DEPTH_TEST);
 
-    glfwWindowHint(GLFW_SAMPLES, 16);
-
     glEnable(GL_MULTISAMPLE);
-    //glDepthFunc(GL_LESS);
 
     // Render loop
     while (!glfwWindowShouldClose(window)) {
