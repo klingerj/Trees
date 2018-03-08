@@ -28,4 +28,5 @@ public:
     inline void TranslateAlongRadius(const float amt) { radius += amt; UpdateEye(); }
     inline void RotateTheta(const float t) { theta += t;  UpdateEye(); }
     inline void RotatePhi(const float p) { phi += p;  UpdateEye(); }
+    inline void TranslateRefAlongWorldY(const float t) { ref.y += t; }
 };

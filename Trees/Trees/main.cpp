@@ -31,19 +31,19 @@
 #define COS_THETA_SMALL 0.86602540378 // cos(pi6)
 
 // For BH Model
-#define ALPHA 1.0f // proportionality constant for resource flow computation
-#define LAMBDA 0.42f
+#define ALPHA 1.2f // proportionality constant for resource flow computation
+#define LAMBDA 0.52f
 
 // For addition of new shoots
 #define OPTIMAL_GROWTH_DIR_WEIGHT 0.1f
-#define TROPISM_DIR_WEIGHT -0.5f
+#define TROPISM_DIR_WEIGHT -0.2f
 #define TROPISM_VECTOR glm::vec3(0.0f, -1.0f, 0.0f)
 
-#define NUM_ITERATIONS 10
+#define NUM_ITERATIONS 5
 
 // For 5-tree scene, eye and ref: glm::vec3(0.25f, 0.5f, 3.5f), glm::vec3(0.25f, 0.0f, 0.0f
-Camera camera = Camera(glm::vec3(0.0f, 10.0f, 0.0f), 0.7853981634f, // 45 degrees vs 75 degrees
-                          (float)VIEWPORT_WIDTH_INITIAL / VIEWPORT_HEIGHT_INITIAL, 0.01f, 100.0f, 10.0f, 0.0f, 30.0f);
+Camera camera = Camera(glm::vec3(0.0f, 3.0f, 0.0f), 0.7853981634f, // 45 degrees vs 75 degrees
+(float)VIEWPORT_WIDTH_INITIAL / VIEWPORT_HEIGHT_INITIAL, 0.01f, 100.0f, 10.0f, 0.0f, 5.0f);
 const float camMoveSensitivity = 0.001f;
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
@@ -67,6 +67,10 @@ void processInput(GLFWwindow *window) {
         camera.RotateTheta(-camMoveSensitivity);
     } else if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) {
         camera.RotateTheta(camMoveSensitivity);
+    } else if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
+        camera.TranslateRefAlongWorldY(-camMoveSensitivity);
+    } else if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) {
+        camera.TranslateRefAlongWorldY(camMoveSensitivity);
     }
 }
 
@@ -120,7 +124,7 @@ struct Bud {
     int numNearbyAttrPts;
     BUD_TYPE type;
     BUD_FATE fate;
-    
+
     // Constructor: to allow use with emplace_back() on vectors
     Bud(const glm::vec3& p, const glm::vec3& b, const glm::vec3& d, const float r, const float q, const float aq, const float re,
         const int i, const float l, const int n, BUD_TYPE t, BUD_FATE f) :
@@ -154,11 +158,10 @@ public:
     void AddAxillaryBuds(const Bud& sourceBud, const int numBuds, const float internodeLength) {
         // Create a temporary list of Buds that will be inserted in this branch's list of buds
         std::vector<Bud> newBuds = std::vector<Bud>();
-        
+
         // Axillary bud orientation: Golden angle of 137.5 about the growth axis
-        // for now, static 45 degrees from the growth axis
         glm::vec3 crossVec = (std::abs(glm::dot(growthDirection, WORLD_UP_VECTOR)) > 0.99f) ? glm::vec3(1.0f, 0.0f, 0.0f) : WORLD_UP_VECTOR; // avoid glm::cross returning a 0-vector
-        const glm::quat branchQuat = glm::angleAxis(glm::radians(30.0f), glm::normalize(glm::cross(growthDirection, crossVec)));
+        const glm::quat branchQuat = glm::angleAxis(glm::radians(25.0f), glm::normalize(glm::cross(growthDirection, crossVec)));
         const glm::mat4 budRotMat = glm::toMat4(branchQuat);
 
         // Direction in which the bud itself is oriented
@@ -175,7 +178,7 @@ public:
             const glm::mat4 budRotMatGoldenAngle = glm::toMat4(branchQuatGoldenAngle);
             const glm::vec3 budGrowthGoldenAngle = glm::normalize(glm::vec3(budRotMatGoldenAngle * glm::vec4(budGrowthDir, 0.0f)));
             newBuds.emplace_back(terminalBud.point + (float)b * newBudGrowthDir * internodeLength, budGrowthGoldenAngle, glm::vec3(0.0f),
-                                   BUD_OCCUPANCY_RADIUS, 0.0f, 0.0f, 0.0f, -1, internodeLength, 0, LATERAL, DORMANT);
+                BUD_OCCUPANCY_RADIUS, 0.0f, 0.0f, 0.0f, -1, internodeLength, 0, LATERAL, DORMANT);
         }
         // Update terminal bud position
         terminalBud.point = terminalBud.point + (float)(newBuds.size()) * growthDirection * internodeLength;
@@ -217,7 +220,8 @@ public:
                     const float budToPtDist = glm::length2(attrPtIter->GetPoint() - currentBud.point);
                     if (budToPtDist < 4.0f * currentBud.internodeLength * currentBud.internodeLength) { // 2x internode length - use distance squared
                         attrPtIter = attractorPoints.erase(attrPtIter); // This attractor point is close to the bud, remove it
-                    } else {
+                    }
+                    else {
                         ++attrPtIter;
                     }
                 }
@@ -250,7 +254,8 @@ public:
                                     oldNearestBudDir -= budToPtDir;
                                     if (--oldNearestBud.numNearbyAttrPts > 0) {
                                         oldNearestBudDir = glm::normalize(oldNearestBudDir);
-                                    } else {
+                                    }
+                                    else {
                                         oldNearestBudDir = glm::vec3(0.0f);
                                     }
                                 }
@@ -492,7 +497,7 @@ int main() {
     // Is it faster to initialize a vector of points with # and value and then set the values, or to push_back values onto an empty list
     // Answer to that: https://stackoverflow.com/questions/32199388/what-is-better-reserve-vector-capacity-preallocate-to-size-or-push-back-in-loo
     // Best options seem to be preallocate or emplace_back with reserve
-    const unsigned int numPoints = 30000;
+    const unsigned int numPoints = 100000;
     unsigned int numPointsIncluded = 0;
     std::vector<glm::vec3> points = std::vector<glm::vec3>();
 
@@ -507,8 +512,8 @@ int main() {
     // Unfortunately, we can't really do any memory preallocating because we don't actually know how many points will be included
     for (unsigned int i = 0; i < numPoints; ++i) {
         const glm::vec3 p = glm::vec3(dis(rng) * 5.0f, dis(rng) * 5.0f, dis(rng) * 5.0f); // for big cube growth chamber: scales of 10, 20, 10
-        if (glm::length(p) < 4.0f /*p.y > 0.2f*/ /*&& (p.x * p.x + p.y * p.y) > 0.2f*/) {
-            points.emplace_back(p + glm::vec3(0.0f, 4.01f, 0.0f));
+        if (glm::length(p) < 5.0f /*p.y > 0.2f*/ /*&& (p.x * p.x + p.y * p.y) > 0.2f*/) {
+            points.emplace_back(p + glm::vec3(0.0f, 2.51f, 0.0f));
             ++numPointsIncluded;
         }
     }
@@ -549,7 +554,7 @@ int main() {
 
     // For numTreeNodes: Update the number of tree nodes to run the algorithm on in the for loop
     bool didUpdate = false; // Flag indicating that none of the tree nodes had any nearby points, so kill the algorithm
-    
+
     for (unsigned int n = 0; n < numIters && attractorPoints.size() > 0; ++n) {
         // Create TreeNodes
         for (unsigned int ti = 0; ti < numTreeNodes; ++ti) { // Perform the algorithm for each tree node
@@ -671,13 +676,14 @@ int main() {
             const glm::vec3& currNodePoint = currNode.GetPoint();
             const unsigned int parentIdx = currNode.GetParentIndex();
             glm::vec3 branchDir;
-            if(parentIdx == -1) {
+            if (parentIdx == -1) {
                 branchDir = glm::vec3(0.0f, 1.0f, 0.0f); // what to do for very first node? TODO ***
-            } else {
+            }
+            else {
                 const TreeNode& currBaseNode = treeNodes[currNode.GetParentIndex()];
                 branchDir = glm::normalize(currNodePoint - currBaseNode.GetPoint());
             }
-            
+
             currNode.branchDir = branchDir;
 
             bool numNearbyPoints = false; // Flag indicating there is at least one nearby attractor point
@@ -825,7 +831,7 @@ int main() {
     std::vector<glm::vec3> cubePoints;
     std::vector<glm::vec3> cubeNormals;
     std::vector<unsigned int> cubeIndices;
-    const float scale = 0.0015f;
+    const float scale = 0.01f;
 
     ///Positions
     //Front face
@@ -833,31 +839,31 @@ int main() {
     cubePoints.emplace_back(glm::vec3(scale, -1.0f, scale));
     cubePoints.emplace_back(glm::vec3(-scale, -1.0f, scale));
     cubePoints.emplace_back(glm::vec3(-scale, 1.0f, scale));
-    
+
     //Right face
     cubePoints.emplace_back(glm::vec3(scale, 1.0f, -scale));
     cubePoints.emplace_back(glm::vec3(scale, -1.0f, -scale));
     cubePoints.emplace_back(glm::vec3(scale, -1.0f, scale));
     cubePoints.emplace_back(glm::vec3(scale, 1.0f, scale));
-    
+
     //Left face
     cubePoints.emplace_back(glm::vec3(-scale, 1.0f, scale));
     cubePoints.emplace_back(glm::vec3(-scale, -1.0f, scale));
     cubePoints.emplace_back(glm::vec3(-scale, -1.0f, -scale));
     cubePoints.emplace_back(glm::vec3(-scale, 1.0f, -scale));
-    
+
     //Back face
     cubePoints.emplace_back(glm::vec3(-scale, 1.0f, -scale));
     cubePoints.emplace_back(glm::vec3(-scale, -1.0f, -scale));
     cubePoints.emplace_back(glm::vec3(scale, -1.0f, -scale));
     cubePoints.emplace_back(glm::vec3(scale, 1.0f, -scale));
-    
+
     //Top face
     cubePoints.emplace_back(glm::vec3(scale, 1.0f, -scale));
     cubePoints.emplace_back(glm::vec3(scale, 1.0f, scale));
     cubePoints.emplace_back(glm::vec3(-scale, 1.0f, scale));
     cubePoints.emplace_back(glm::vec3(-scale, 1.0f, -scale));
-    
+
     //Bottom face
     cubePoints.emplace_back(glm::vec3(scale, -1.0f, scale));
     cubePoints.emplace_back(glm::vec3(scale, -1.0f, -scale));
@@ -906,20 +912,80 @@ int main() {
     // want to generate blue gl point for every bud and green gl line for each branch
 
     // Vectors of stuff to render
+    #define INTERNODE_CUBES
+
     std::vector<glm::vec3> budPoints = std::vector<glm::vec3>();
     std::vector<unsigned int> budIndices = std::vector<unsigned int>();
     std::vector<unsigned int> branchIndices = std::vector<unsigned int>(); // one gl line corresponds to one internode. These indices will use the budPoints vector.
+
+    
+
+    std::vector<glm::vec3> internodePoints = std::vector <glm::vec3>();
+    std::vector<glm::vec3> internodeNormals = std::vector <glm::vec3>();
+    std::vector<unsigned int> internodeIndices = std::vector <unsigned int>();
 
     // get the points vectors
     const std::vector<TreeBranch>& branches = tree.GetBranches();
     for (int br = 0; br < tree.GetBranches().size(); ++br) {
         const std::vector<Bud>& buds = branches[br].GetBuds();
+        #ifndef INTERNODE_CUBES
         const unsigned int idxOffset = budPoints.size();
-        for (int bu = 0; bu < buds.size(); ++bu) {
+        #endif
+        int bu;
+        #ifdef INTERNODE_CUBES
+        bu = 1;
+        #else
+        bu = 0;
+        #endif;
+        for (; bu < buds.size(); ++bu) {
+            #ifdef INTERNODE_CUBES // create internode VBO
+            const Bud& currentBud = buds[bu];
+            const glm::vec3& internodeEndPoint = currentBud.point; // effectively, just the position of the bud at the end of the current internode
+            glm::vec3 branchAxis = glm::normalize(internodeEndPoint - buds[bu - 1].point); // not sure if i store this direction somewhere
+
+            // Back to rotation
+
+            // orientation is messed up?
+            const bool axesAreAligned = std::abs(glm::dot(branchAxis, WORLD_UP_VECTOR)) > 0.99f;
+            glm::vec3 crossVec = axesAreAligned ? glm::vec3(1.0f, 0.0f, 0.0f) : WORLD_UP_VECTOR; // avoid glm::cross returning a 0-vector
+            const glm::vec3 axis = glm::normalize(glm::cross(crossVec, branchAxis));
+            const float angle = std::acos(glm::dot(branchAxis, WORLD_UP_VECTOR));
+
+            const glm::quat branchQuat = glm::angleAxis(angle, axis);
+            glm::mat4 branchTransform = glm::toMat4(branchQuat); // initially just a rotation matrix, eventually stores the entire transformation
+
+            // Compute the translation component - set to the the base branch point + 0.5 * internodeLength, placing the cylinder at the halfway point
+            const glm::vec3 translation = internodeEndPoint - 0.5f * branchAxis * currentBud.internodeLength;
+
+            // Create an overall transformation matrix of translation and rotation
+            // this is where we would use the computed pipe radius
+            branchTransform = glm::translate(glm::mat4(1.0f), translation) * branchTransform * glm::scale(glm::mat4(1.0f), glm::vec3(1.0f, currentBud.internodeLength * 0.5f, 1.0f));
+
+            std::vector<glm::vec3> cubePointsTrans = std::vector<glm::vec3>();
+            std::vector<glm::vec3> cubeNormalsTrans = std::vector<glm::vec3>();
+            // Interleave VBO data or nah
+            for (int i = 0; i < cubePoints.size(); ++i) {
+                cubePointsTrans.emplace_back(glm::vec3(branchTransform * glm::vec4(cubePoints[i], 1.0f)));
+                glm::vec3 transformedNormal = glm::vec3(glm::inverse(glm::transpose(branchTransform)) * glm::vec4(cubeNormals[i], 0.0f));
+                cubeNormalsTrans.emplace_back(transformedNormal);
+            }
+
+            std::vector<unsigned int> cubeIndicesNew = std::vector<unsigned int>();
+            for (int i = 0; i < cubeIndices.size(); ++i) {
+                const unsigned int size = (unsigned int)internodePoints.size();
+                cubeIndicesNew.emplace_back(cubeIndices[i] + size); // offset this set of indices by the # of positions. Divide by two bc it contains positions and normals
+            }
+
+            internodePoints.insert(internodePoints.end(), cubePointsTrans.begin(), cubePointsTrans.end());
+            internodeNormals.insert(internodeNormals.end(), cubeNormalsTrans.begin(), cubeNormalsTrans.end());
+            internodeIndices.insert(internodeIndices.end(), cubeIndicesNew.begin(), cubeIndicesNew.end());
+
+            #else // old GL_LINES code
             if (bu < buds.size() - 1) { // proper indexing, just go with it
                 branchIndices.emplace_back(bu + idxOffset);
                 branchIndices.emplace_back(bu + 1 + idxOffset);
             }
+            #endif
             budPoints.emplace_back(buds[bu].point);
         }
     }
@@ -929,94 +995,28 @@ int main() {
         budIndices.emplace_back(i);
     }
 
-
-
-
-    // Create points and indices for the tree branches
-    std::vector<glm::vec3> pointsTreeBranch = std::vector<glm::vec3>();
-    std::vector<glm::vec3> normalsTreeBranch = std::vector<glm::vec3>();
-    std::vector<unsigned int> indicesTreeBranch = std::vector<unsigned int>();
-    int idxCounter = 0;
-    /*for (unsigned int i = (unsigned int)treeNodes.size() - 1; i > 0; --i) {
-        const TreeNode& currTreeNode = treeNodes[i];
-        const int parentIdx = currTreeNode.GetParentIndex();
-        if (parentIdx != -1) {
-            // Copy over the platonic cylinder/cube positions
-            // transform them individually i guess
-            // Check if i should emplace_back repeatedly or create a whole new vector and use insert - performance compare after getting them working
-            // Could/Should move this to a compute shader bc doing this sequentially is lame
-
-            // Compute the rotation using quaternion
-            
-            #ifdef CUBES
-            const glm::vec3 branchBasePoint = treeNodes[parentIdx].GetPoint();
-            glm::vec3 branchAxis = currTreeNode.GetPoint() - branchBasePoint;
-
-            // Compute the translation component real quick - set to the the base branch point + 0.5 * D, placing the cylinder at the halfway point
-            const glm::vec3 translation = branchBasePoint + 0.5f * branchAxis;
-            const float branchAxisLength = length(branchAxis);
-            
-            // Back to rotation
-            branchAxis /= branchAxisLength;
-            const glm::vec3 axis = glm::normalize(glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), branchAxis)); // might be negative / TODO *** goes to zero for perfectly vertical trees. find a new way to do this?
-            const float angle = std::acos(glm::dot(glm::vec3(0.0f, 1.0f, 0.0f), branchAxis));
-
-            const glm::quat branchQuat = glm::angleAxis(angle, axis);
-            glm::mat4 branchTransform = glm::toMat4(branchQuat); // initially just a rotation matrix
-
-            // Create an overall transformation matrix of translation and rotation
-            branchTransform = glm::translate(glm::mat4(1.0f), translation) * branchTransform * glm::scale(glm::mat4(1.0f),
-                glm::vec3(2.0f * 1.0f / std::powf(1.25f, (float)currTreeNode.iter), branchAxisLength * 0.5f, 2.0f * 1.0f / std::powf(1.25f, (float)currTreeNode.iter)));
-
-            std::vector<glm::vec3> cubePointsTrans = std::vector<glm::vec3>();
-            std::vector<glm::vec3> cubeNormalsTrans = std::vector<glm::vec3>();
-            // Interleave VBO data
-            for (int i = 0; i < cubePoints.size(); ++i) {
-                cubePointsTrans.emplace_back(glm::vec3(branchTransform * glm::vec4(cubePoints[i], 1.0f)));
-                glm::vec3 transformedNormal = glm::vec3(glm::inverse(glm::transpose(branchTransform)) * glm::vec4(cubeNormals[i], 0.0f));
-                cubeNormalsTrans.emplace_back(transformedNormal); // multiply by inverse transpose for normals
-            }
-
-            std::vector<unsigned int> cubeIndicesNew = std::vector<unsigned int>();
-            for (int i = 0; i < cubeIndices.size(); ++i) {
-                const unsigned int size = (unsigned int)pointsTreeBranch.size();
-                cubeIndicesNew.emplace_back(cubeIndices[i] + size); // offset this set of indices by the # of positions. Divide by two bc it contains positions and normals
-            }
-
-            pointsTreeBranch.insert(pointsTreeBranch.end(), cubePointsTrans.begin(), cubePointsTrans.end());
-            normalsTreeBranch.insert(normalsTreeBranch.end(), cubeNormalsTrans.begin(), cubeNormalsTrans.end());
-            indicesTreeBranch.insert(indicesTreeBranch.end(), cubeIndicesNew.begin(), cubeIndicesNew.end());
-            
-            #else
-
-            // Creation for GL_LINES branches
-            pointsTreeBranch.push_back(treeNodes[parentIdx].GetPoint()); // base of branch
-            pointsTreeBranch.push_back(currTreeNode.GetPoint()); // branch end point
-            indicesTreeBranch.emplace_back(idxCounter++);
-            indicesTreeBranch.emplace_back(idxCounter++);
-            #endif
-        }
-    }*/
-    
     /// GL calls and drawing
-    
+
     ShaderProgram sp = ShaderProgram("Shaders/point-vert.vert", "Shaders/point-frag.frag");
     ShaderProgram sp2 = ShaderProgram("Shaders/treeNode-vert.vert", "Shaders/treeNode-frag.frag");
     ShaderProgram sp3 = ShaderProgram("Shaders/mesh-vert.vert", "Shaders/mesh-frag.frag");
-    
+
     // Array/Buffer Objects
-    unsigned int VAO, VAO2, VAO3;
-    unsigned int VBO, VBO2, VBO3;
-    unsigned int EBO, EBO2, EBO3;
+    unsigned int VAO, VAO2, VAO3, VAO4;
+    unsigned int VBO, VBO2, VBO3, VBO4;
+    unsigned int EBO, EBO2, EBO3, EBO4;
     glGenVertexArrays(1, &VAO);
     glGenVertexArrays(1, &VAO2);
     glGenVertexArrays(1, &VAO3);
+    glGenVertexArrays(1, &VAO4);
     glGenBuffers(1, &VBO);
     glGenBuffers(1, &VBO2);
     glGenBuffers(1, &VBO3);
+    glGenBuffers(1, &VBO4);
     glGenBuffers(1, &EBO);
     glGenBuffers(1, &EBO2);
     glGenBuffers(1, &EBO3);
+    glGenBuffers(1, &EBO4);
 
     // VAO Binding
     glBindVertexArray(VAO);
@@ -1042,49 +1042,18 @@ int main() {
     // Attribute linking
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
     glEnableVertexAttribArray(0);
-    glBindVertexArray(0);
+
+
 
     glBindVertexArray(VAO2);
     glBindBuffer(GL_ARRAY_BUFFER, VBO2);
-    #ifdef CUBES
-    // Positions
-    glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * pointsTreeBranch.size(), pointsTreeBranch.data(), GL_STATIC_DRAW);
-    // Tree Branches EBO
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO2);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * indicesTreeBranch.size(), indicesTreeBranch.data(), GL_STATIC_DRAW);
-    // Attribute linking
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
-    glEnableVertexAttribArray(0);
 
-    // Normals
-    glBindBuffer(GL_ARRAY_BUFFER, VBO3);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * normalsTreeBranch.size(), normalsTreeBranch.data(), GL_STATIC_DRAW);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO3);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * indicesTreeBranch.size(), indicesTreeBranch.data(), GL_STATIC_DRAW);
-    // Attribute Linking
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
-    glEnableVertexAttribArray(1);
-
-    #else
-    /*
-    // GL Lines
-    glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * pointsTreeBranch.size(), pointsTreeBranch.data(), GL_STATIC_DRAW);
-    // Tree Branches EBO
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO2);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * indicesTreeBranch.size(), indicesTreeBranch.data(), GL_STATIC_DRAW);
-    // Attribute linking
-    // Pos
-    // Shader uses the normal but just leave it blank here and it'll render black which is ok i guess
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
-    glEnableVertexAttribArray(0);
-    glBindVertexArray(0);*/
-
+    #ifndef INTERNODE_CUBES
     glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * budPoints.size(), budPoints.data(), GL_STATIC_DRAW);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO2);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * budIndices.size(), budIndices.data(), GL_STATIC_DRAW);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0); // pass positions
     glEnableVertexAttribArray(0);
-    glBindVertexArray(0);
 
     glBindVertexArray(VAO3);
     glBindBuffer(GL_ARRAY_BUFFER, VBO3);
@@ -1093,11 +1062,36 @@ int main() {
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * branchIndices.size(), branchIndices.data(), GL_STATIC_DRAW);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0); // pass positions
     glEnableVertexAttribArray(0);
-    glBindVertexArray(0);
+
+    #else
+
+    // Points
+    glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * internodePoints.size(), internodePoints.data(), GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO2);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * internodeIndices.size(), internodeIndices.data(), GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    // Normals
+    glBindBuffer(GL_ARRAY_BUFFER, VBO3);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * internodeNormals.size(), internodeNormals.data(), GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO3);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * internodeIndices.size(), internodeIndices.data(), GL_STATIC_DRAW);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
+    glEnableVertexAttribArray(1);
 
     #endif
-    
-    
+
+    // Bud Points
+    glBindVertexArray(VAO4);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO4);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * budPoints.size(), budPoints.data(), GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO4);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * budIndices.size(), budIndices.data(), GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
+    glEnableVertexAttribArray(0);
+
+
     // This was TinyOBJ Debugging
     /*for (int i = 0; i < m.GetVertices().size(); i++) {
         std::cout << m.GetVertices()[i].pos.x << m.GetVertices()[i].pos.y << m.GetVertices()[i].pos.z << std::endl;
@@ -1128,7 +1122,7 @@ int main() {
 
     glPointSize(2);
     glLineWidth(1);
-    glEnable(GL_DEPTH_TEST); 
+    glEnable(GL_DEPTH_TEST);
     //glDepthFunc(GL_LESS);
 
     // Render loop
@@ -1142,27 +1136,31 @@ int main() {
         glBindVertexArray(VAO);
         sp.setCameraViewProj("cameraViewProj", camera.GetViewProj());
         glDrawElements(GL_POINTS, (GLsizei) tempPtsIdx.size(), GL_UNSIGNED_INT, 0);
-        
+
         // old cubes / new bud points
         glBindVertexArray(VAO2);
         sp2.setCameraViewProj("cameraViewProj", camera.GetViewProj());
-        #ifdef CUBES
-        glDrawElements(GL_TRIANGLES, (GLsizei)indicesTreeBranch.size(), GL_UNSIGNED_INT, 0);
+        #ifndef INTERNODE_CUBES
+        // draws bud points NOPE******
+        //glDrawElements(GL_POINTS, (GLsizei)budIndices.size(), GL_UNSIGNED_INT, 0);
         #else
-        //glDrawElements(GL_LINES, (GLsizei)indicesTreeBranch.size(), GL_UNSIGNED_INT, 0);
-        //sp.use();
-        // draws bud points
-        glDrawElements(GL_POINTS, (GLsizei)budIndices.size(), GL_UNSIGNED_INT, 0);
+        // draw the internode geometry
+        glDrawElements(GL_TRIANGLES, (GLsizei)internodeIndices.size(), GL_UNSIGNED_INT, 0);
         #endif
-
-        #ifndef CUBES
 
         glBindVertexArray(VAO3);
         // new tree branches
         sp3.setCameraViewProj("cameraViewProj", camera.GetViewProj());
+        #ifndef INTERNODE_CUBES
+        // draw GL_LINES intenodes
         glDrawElements(GL_LINES, (GLsizei)branchIndices.size(), GL_UNSIGNED_INT, 0);
-
+        #else
+        // do nothing idk
         #endif
+
+        glBindVertexArray(VAO4);
+        sp.setCameraViewProj("cameraViewProj", camera.GetViewProj());
+        glDrawElements(GL_POINTS, (GLsizei)budIndices.size(), GL_UNSIGNED_INT, 0);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -1171,12 +1169,15 @@ int main() {
     glDeleteVertexArrays(1, &VAO);
     glDeleteVertexArrays(1, &VAO2);
     glDeleteVertexArrays(1, &VAO3);
+    glDeleteVertexArrays(1, &VAO4);
     glDeleteBuffers(1, &VBO);
     glDeleteBuffers(1, &VBO2);
     glDeleteBuffers(1, &VBO3);
+    glDeleteBuffers(1, &VBO4);
     glDeleteBuffers(1, &EBO);
     glDeleteBuffers(1, &EBO2);
     glDeleteBuffers(1, &EBO3);
+    glDeleteBuffers(1, &EBO4);
 
     glfwTerminate();
     return 0;
