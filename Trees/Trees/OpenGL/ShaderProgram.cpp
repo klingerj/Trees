@@ -80,10 +80,6 @@ ShaderProgram::ShaderProgram(const GLchar* vertexPath, const GLchar* fragmentPat
     glDeleteShader(fragment);
 }
 
-void ShaderProgram::use() {
-    glUseProgram(ID);
-}
-
 void ShaderProgram::setCameraViewProj(const char* uniformName, const glm::mat4& camViewProj) {
     use();
     glUniformMatrix4fv(glGetUniformLocation(ID, uniformName), 1, GL_FALSE, glm::value_ptr(camViewProj));

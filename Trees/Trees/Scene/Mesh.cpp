@@ -36,7 +36,7 @@ void Mesh::LoadFromFile(const char* filepath) {
             // Loop over vertices in the face.
             for (size_t v = 0; v < fv; ++v) {
                 // access to vertex
-                const unsigned int index = index_offset + v;
+                const unsigned int index = (unsigned int)(index_offset + v);
                 tinyobj::index_t idx = shapes[s].mesh.indices[index];
                 Vertex newVert;
                 newVert.pos = { attrib.vertices[3 * idx.vertex_index], attrib.vertices[3 * idx.vertex_index + 1], attrib.vertices[3 * idx.vertex_index + 2] };

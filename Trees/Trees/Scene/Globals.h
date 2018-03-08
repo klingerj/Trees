@@ -1,0 +1,11 @@
+#pragma once
+
+#define GLM_FORCE_RADIANS
+#define VIEWPORT_WIDTH_INITIAL 800
+#define VIEWPORT_HEIGHT_INITIAL 600
+
+#define NUM_ITERATIONS 3
+
+#define WORLD_UP_VECTOR glm::vec3(0.0f, 1.0f, 0.0f)
+
+#define ENABLE_MULTISAMPLING
