@@ -9,3 +9,5 @@
 #define WORLD_UP_VECTOR glm::vec3(0.0f, 1.0f, 0.0f)
 
 #define ENABLE_MULTISAMPLING
+
+#define EPSILON 0.00001f
