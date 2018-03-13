@@ -51,17 +51,16 @@ public:
 
 // For BH Model
 #define ALPHA 1.2f // proportionality constant for resource flow computation
-#define LAMBDA 0.52f
+#define LAMBDA 0.6f
 
 // For Addition of new shoots
-#define OPTIMAL_GROWTH_DIR_WEIGHT 0.1f
-#define TROPISM_DIR_WEIGHT -0.2f
+#define OPTIMAL_GROWTH_DIR_WEIGHT 0.15f
+#define TROPISM_DIR_WEIGHT 0.0f
 #define TROPISM_VECTOR glm::vec3(0.0f, -1.0f, 0.0f)
 
-// TODO: fix the pipe model computation
 // For branch radius computation
-#define MINIMUM_BRANCH_RADIUS 1.0f // Radius of outermost branches
-#define PIPE_EXPONENT 1.0f // somewhere between 2 and 3 usually according to the paper
+#define MINIMUM_BRANCH_RADIUS 0.3f // Radius of outermost branches
+#define PIPE_EXPONENT 2.8f // somewhere between 2 and 3 usually according to the paper
 
 /// Definition of structures
 
@@ -115,7 +114,7 @@ public:
         growthDirection(d), radius(INITIAL_BRANCH_RADIUS), axisOrder(ao), prevBranchIndex(bi) {
         buds = std::vector<Bud>();
         buds.reserve(8); // Reserve memory beforehand so we are less likely to have to resize the array later on. Performance test this.
-        buds.emplace_back(p, glm::vec3(growthDirection), glm::vec3(0.0f), BUD_OCCUPANCY_RADIUS, 0.0f, 0.0f, 0.0f, -1, 0.1f, 0.0f, 0, TERMINAL, DORMANT); // add the terminal bud for this branch. Applies a prelim internode length (tweak, TODO)
+        buds.emplace_back(p, glm::vec3(growthDirection), glm::vec3(0.0f), BUD_OCCUPANCY_RADIUS, 0.0f, 0.0f, 0.0f, -1, 0.5f, 0.0f, 0, TERMINAL, DORMANT); // add the terminal bud for this branch. Applies a prelim internode length (tweak, TODO)
     }
     inline const std::vector<Bud>& GetBuds() const {
         return buds;

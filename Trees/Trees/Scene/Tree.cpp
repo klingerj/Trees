@@ -273,7 +273,7 @@ float Tree::ComputeBranchRadiiRecursive(TreeBranch& branch) {
                 // do nothing I think, only add at branching points
                 break;
             case FORMED_BRANCH:
-                branchRadius = std::pow(branchRadius, PIPE_EXPONENT) + std::pow(ComputeBranchRadiiRecursive(branches[currentBud.formedBranchIndex]), PIPE_EXPONENT);
+                branchRadius = std::pow(std::pow(branchRadius, PIPE_EXPONENT) + std::pow(ComputeBranchRadiiRecursive(branches[currentBud.formedBranchIndex]), PIPE_EXPONENT), 1.0f / PIPE_EXPONENT);
                 break;
             case FORMED_FLOWER:
                 // don't change radius for now?
