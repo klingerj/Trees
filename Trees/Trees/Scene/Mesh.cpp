@@ -44,7 +44,7 @@ void Mesh::LoadFromFile(const char* filepath) {
                 newVert.nor = { attrib.normals[3 * idx.normal_index], attrib.normals[3 * idx.normal_index + 1], attrib.normals[3 * idx.normal_index + 2] };
                 vertices.emplace_back(newVert);
                 indices.emplace_back(index);
-                t.AppendVertex(newVert);
+                t.AppendVertex(newVert.pos);
             }
             index_offset += fv;
             t.ComputePlaneNormal();
@@ -54,11 +54,11 @@ void Mesh::LoadFromFile(const char* filepath) {
     return;
 }
 
-// TODO: implement better tri intersection
-const Intersection Triangle::Intersect(const Ray& r) const {
+// TODO: implement better tri intersection?
+Intersection Triangle::Intersect(const Ray& r) const {
 
     //1. Ray-plane intersection
-    float t = glm::dot(planeNormal, (points[0] - r.GetOrigin())) / glm::dot(planeNormal, r.GetDirection());
+    /*float t = glm::dot(planeNormal, (points[0] - r.GetOrigin())) / glm::dot(planeNormal, r.GetDirection());
     if (t < 0) return Intersection();
 
     glm::vec3 P = r.GetOrigin() + t * r.GetDirection();
@@ -71,14 +71,14 @@ const Intersection Triangle::Intersect(const Ray& r) const {
 
     if (s1 >= 0 && s1 <= 1 && s2 >= 0 && s2 <= 1 && s3 >= 0 && s3 <= 1 && fequal(sum, 1.0f)) {
         return Intersection(P, planeNormal, t);
-    }
+    }*/
     return Intersection();
 }
 
-const Intersection Mesh::Intersect() const {
+Intersection Mesh::Intersect(const Ray& r) const {
     Intersection finalIsect = Intersection();
     for (unsigned int i = 0; i < (unsigned int)triangles.size(); ++i) {
-        const Intersection isect = triangles[i].Intersect();
+        const Intersection isect = triangles[i].Intersect(r);
         if (isect.IsValid() && isect.GetT() < finalIsect.GetT()) {
             finalIsect = isect;
         }

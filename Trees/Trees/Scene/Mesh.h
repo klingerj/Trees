@@ -22,7 +22,7 @@ public:
     void AppendVertex(const glm::vec3& p) {
         points.emplace_back(p);
     }
-    const Intersection Intersect(const Ray& r) const;
+    Intersection Intersect(const Ray& r) const;
     void ComputePlaneNormal() {
         // TODO compute plane normal via cross product here
     }
@@ -44,5 +44,5 @@ public:
     void LoadFromFile(const char* filepath);
     inline const std::vector<Vertex>& GetVertices() const { return vertices; }
     inline const std::vector<unsigned int>& GetIndices() const { return indices; }
-    const Intersection Intersect() const;
+    Intersection Intersect(const Ray& r) const;
 };
