@@ -23,8 +23,8 @@
 
 // For 5-tree scene, eye and ref: glm::vec3(0.25f, 0.5f, 3.5f), glm::vec3(0.25f, 0.0f, 0.0f
 Camera camera = Camera(glm::vec3(0.0f, 3.0f, 0.0f), 0.7853981634f, // 45 degrees vs 75 degrees
-(float)VIEWPORT_WIDTH_INITIAL / VIEWPORT_HEIGHT_INITIAL, 0.01f, 2000.0f, 10.0f, 0.0f, 5.0f);
-const float camMoveSensitivity = 0.001f;
+(float)VIEWPORT_WIDTH_INITIAL / VIEWPORT_HEIGHT_INITIAL, 0.01f, 2000.0f, 10.0f, 0.0f, 25.0f);
+const float camMoveSensitivity = 0.004f;
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     glViewport(0, 0, width, height);
@@ -93,7 +93,7 @@ int main() {
     // Is it faster to initialize a vector of points with # and value and then set the values, or to push_back values onto an empty list
     // Answer to that: https://stackoverflow.com/questions/32199388/what-is-better-reserve-vector-capacity-preallocate-to-size-or-push-back-in-loo
     // Best options seem to be preallocate or emplace_back with reserve
-    const unsigned int numPoints = 100000;
+    const unsigned int numPoints = 200000;
     unsigned int numPointsIncluded = 0;
     std::vector<glm::vec3> points = std::vector<glm::vec3>();
 
@@ -107,9 +107,11 @@ int main() {
     auto start = std::chrono::system_clock::now();
     // Unfortunately, we can't really do any memory preallocating because we don't actually know how many points will be included
     for (unsigned int i = 0; i < numPoints; ++i) {
-        const glm::vec3 p = glm::vec3(dis(rng) * 10.0f, dis(rng) * 10.0f, dis(rng) * 10.0f); // for big cube growth chamber: scales of 10, 20, 10
-        if (glm::length(p) < 10.0f /*p.y > 0.2f*/ /*&& (p.x * p.x + p.y * p.y) > 0.2f*/) {
-            points.emplace_back(p + glm::vec3(0.0f, 0.0f, 0.0f));
+        const glm::vec3 p = glm::vec3(dis(rng) * 6.0f, dis(rng) * 6.0f, dis(rng) * 6.0f); // for big cube growth chamber: scales of 10, 20, 10
+        if (glm::length(p) < 4.0f ||
+            glm::length(p + glm::vec3(2.5f, -3.5f, 0.0f)) < 2.0f ||
+            glm::length(p + glm::vec3(-2.5f, -3.5f, 0.0f)) < 2.0f) {
+            points.emplace_back((p + glm::vec3(0.0f, 4.0f, 0.0f)) * 1.5f);
             ++numPointsIncluded;
         }
     }

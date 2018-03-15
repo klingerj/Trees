@@ -50,17 +50,17 @@ public:
 #define COS_THETA_SMALL 0.86602540378 // cos(pi6)
 
 // For BH Model
-#define ALPHA 1.2f // proportionality constant for resource flow computation
-#define LAMBDA 0.6f
+#define ALPHA 1.0f // proportionality constant for resource flow computation
+#define LAMBDA 0.5f
 
 // For Addition of new shoots
-#define OPTIMAL_GROWTH_DIR_WEIGHT 0.15f
+#define OPTIMAL_GROWTH_DIR_WEIGHT 0.7f
 #define TROPISM_DIR_WEIGHT 0.0f
 #define TROPISM_VECTOR glm::vec3(0.0f, -1.0f, 0.0f)
 
 // For branch radius computation
-#define MINIMUM_BRANCH_RADIUS 0.3f // Radius of outermost branches
-#define PIPE_EXPONENT 2.8f // somewhere between 2 and 3 usually according to the paper
+#define MINIMUM_BRANCH_RADIUS 0.2f // Radius of outermost branches
+#define PIPE_EXPONENT 2.0f // somewhere between 2 and 3 usually according to the paper
 
 /// Definition of structures
 

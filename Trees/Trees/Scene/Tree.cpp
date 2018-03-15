@@ -234,7 +234,7 @@ void Tree::AppendNewShoots() {
         for (unsigned int bu = 0; bu < numBuds; ++bu) {
             Bud& currentBud = buds[bu];
             const int numMetamers = static_cast<int>(std::floor(currentBud.resourceBH));
-            const float metamerLength = currentBud.resourceBH / (float)numMetamers * 0.35f; // TODO remove fake scale *************
+            const float metamerLength = currentBud.resourceBH / (float)numMetamers * INTERNODE_SCALE; // TODO remove fake scale *************
             switch (currentBud.type) {
             case TERMINAL: {
                 if (numMetamers > 0) {
