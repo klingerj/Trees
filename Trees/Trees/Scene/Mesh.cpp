@@ -57,21 +57,22 @@ void Mesh::LoadFromFile(const char* filepath) {
 // TODO: implement better tri intersection?
 Intersection Triangle::Intersect(const Ray& r) const {
 
-    //1. Ray-plane intersection
+    // 1. Ray-plane intersection
     const float t = glm::dot(planeNormal, (points[0] - r.GetOrigin())) / glm::dot(planeNormal, r.GetDirection());
     if (t < 0) {
         return Intersection();
     }
 
     const glm::vec3 P = r.GetOrigin() + t * r.GetDirection();
-    //2. Barycentric test
+
+    // 2. Barycentric test
     const float S = 1.0f / (0.5f * glm::length(glm::cross(points[0] - points[1], points[0] - points[2])));
     const float S1 = 0.5f * glm::length(glm::cross(P - points[1], P - points[2]));
     const float S2 = 0.5f * glm::length(glm::cross(P - points[2], P - points[0]));
     const float S3 = 0.5f * glm::length(glm::cross(P - points[0], P - points[1]));
     const float sum = (S1 + S2 + S3) * S;
 
-    if ((S1 >= 0.0f && S1 <= 1.0f) && (S2 >= 0.0f && S2 <= 1.0f) && (S3 >= 0.0f && S3 <= 1.0f) && std::fabsf(sum - 1.0f) < FLT_EPSILON) {
+    if ((S1 >= 0.0f && S1 <= 1.0f) && (S2 >= 0.0f && S2 <= 1.0f) && (S3 >= 0.0f && S3 <= 1.0f) && std::fabsf(sum - 1.0f) < EPSILON) {
         return Intersection(P, planeNormal, t);
     }
     return Intersection();

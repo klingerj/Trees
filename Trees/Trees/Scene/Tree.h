@@ -45,7 +45,7 @@ public:
 
 // For Space Colonization
 #define INITIAL_BRANCH_RADIUS 0.1f
-#define BUD_OCCUPANCY_RADIUS 0.5f
+#define INITIAL_BUD_INTERNODE_RADIUS 0.05f
 #define COS_THETA 0.70710678118f // cos(pi/4)
 #define COS_THETA_SMALL 0.86602540378 // cos(pi6)
 
@@ -59,8 +59,8 @@ public:
 #define TROPISM_VECTOR glm::vec3(0.0f, -1.0f, 0.0f)
 
 // For branch radius computation
-#define MINIMUM_BRANCH_RADIUS 0.5f // Radius of outermost branches
-#define PIPE_EXPONENT 2.0f // somewhere between 2 and 3 usually according to the paper
+#define MINIMUM_BRANCH_RADIUS 0.12f // Radius of outermost branches
+#define PIPE_EXPONENT 3.0f // somewhere between 2 and 3 usually according to the paper
 
 /// Definition of structures
 
@@ -81,7 +81,6 @@ struct Bud {
     glm::vec3 point;
     glm::vec3 naturalGrowthDir; // Growth direction of this bud. Use Golden Angle (137.5 degrees) for axillary buds.
     glm::vec3 optimalGrowthDir; // optimal growth direction computing during space colonization
-    float occupancyRadius; // Radius about the bud in which attractor points are removed
     float environmentQuality; // In space colonization, this is a binary 0 or 1
     float accumEnvironmentQuality; // Using Borchert-Honda Model, indicates the accumulated amount of resources reaching this bud
     float resourceBH; // amount of available resource reaching this Bud using the BH Model
@@ -93,9 +92,9 @@ struct Bud {
     BUD_FATE fate;
 
     // Constructor: to allow use with emplace_back() for std::vectors
-    Bud(const glm::vec3& p, const glm::vec3& nd, const glm::vec3& d, const float r, const float q, const float aq, const float re,
+    Bud(const glm::vec3& p, const glm::vec3& nd, const glm::vec3& d, const float q, const float aq, const float re,
         const int i, const float l, const float br, const int n, BUD_TYPE t, BUD_FATE f) :
-        point(p), naturalGrowthDir(nd), optimalGrowthDir(d), occupancyRadius(r), environmentQuality(q), accumEnvironmentQuality(aq), resourceBH(re),
+        point(p), naturalGrowthDir(nd), optimalGrowthDir(d), environmentQuality(q), accumEnvironmentQuality(aq), resourceBH(re),
         formedBranchIndex(i), internodeLength(l), branchRadius(br), numNearbyAttrPts(n), type(t), fate(f) {}
 };
 
@@ -114,7 +113,7 @@ public:
         growthDirection(d), radius(INITIAL_BRANCH_RADIUS), axisOrder(ao), prevBranchIndex(bi) {
         buds = std::vector<Bud>();
         buds.reserve(8); // Reserve memory beforehand so we are less likely to have to resize the array later on. Performance test this.
-        buds.emplace_back(p, glm::vec3(growthDirection), glm::vec3(0.0f), BUD_OCCUPANCY_RADIUS, 0.0f, 0.0f, 0.0f, -1, 0.5f, 0.0f, 0, TERMINAL, DORMANT); // add the terminal bud for this branch. Applies a prelim internode length (tweak, TODO)
+        buds.emplace_back(p, glm::vec3(growthDirection), glm::vec3(0.0f), 0.0f, 0.0f, 0.0f, -1, INITIAL_BUD_INTERNODE_RADIUS, 0.0f, 0, TERMINAL, DORMANT); // add the terminal bud for this branch. Applies a prelim internode length (tweak, TODO)
     }
     inline const std::vector<Bud>& GetBuds() const {
         return buds;

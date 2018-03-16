@@ -57,8 +57,8 @@ void processInput(GLFWwindow *window) {
 
 int main() {
     // Test Mesh Loading
-    //Mesh m = Mesh();
-    //m.LoadFromFile("OBJs/sphere.obj");
+    Mesh m = Mesh();
+    m.LoadFromFile("OBJs/helixRot.obj");
 
     // GLFW Window Setup
     glfwInit();
@@ -94,7 +94,7 @@ int main() {
     // Is it faster to initialize a vector of points with # and value and then set the values, or to push_back values onto an empty list
     // Answer to that: https://stackoverflow.com/questions/32199388/what-is-better-reserve-vector-capacity-preallocate-to-size-or-push-back-in-loo
     // Best options seem to be preallocate or emplace_back with reserve
-    const unsigned int numPoints = 10000; //300k for heart
+    const unsigned int numPoints = 1000000; //300k for heart
     unsigned int numPointsIncluded = 0;
     std::vector<glm::vec3> points = std::vector<glm::vec3>();
 
@@ -108,7 +108,7 @@ int main() {
     auto start = std::chrono::system_clock::now();
     // Unfortunately, we can't really do any memory preallocating because we don't actually know how many points will be included
     for (unsigned int i = 0; i < numPoints; ++i) {
-        const glm::vec3 p = glm::vec3(dis(rng) * 4.0f/*-2.0f*/ /** -0.6f*/, dis(rng) * 4.0f/*0.5f*/  /** 0.012f*/, dis(rng) * 4.0f/*0.0f*/  /** 0.113f*/); // for heart shape: all have scale 6.0f
+        const glm::vec3 p = glm::vec3(dis(rng) * 2.0f /** -0.6f*/, dis(rng) * 2.0f /*0.5f*/  /** 0.012f*/, dis(rng) * 4.0f /** 0.113f*/); // for heart shape: all have scale 6.0f
         /*if ((glm::length(p) < 4.0f ||
             glm::length(p + glm::vec3(3.5f, -2.5f, 0.0f)) < 3.0f ||
             glm::length(p + glm::vec3(-3.5f, -2.5f, 0.0f)) < 3.0f) &&
@@ -118,10 +118,10 @@ int main() {
         }*/
         
         // Intersect with mesh instead
-        //if (m.Contains(p)) {
-            points.emplace_back(p + glm::vec3(0.0f, 4.0f, 0.0f));
+        if (m.Contains(p)) {
+            points.emplace_back(p);
             ++numPointsIncluded;
-        //}
+        }
     }
 
     // Create the actual AttractorPoints
@@ -451,9 +451,9 @@ int main() {
         std::cout << m.GetIndices()[i] << std::endl;
     }*/
 
-    /*std::vector<unsigned int> idx = m.GetIndices();
-
     // Mesh buffers
+    std::vector<unsigned int> idx = m.GetIndices();
+
     glBindVertexArray(VAO5);
     glBindBuffer(GL_ARRAY_BUFFER, VBO5);
     glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex) * m.GetVertices().size(), m.GetVertices().data(), GL_STATIC_DRAW);
@@ -466,7 +466,7 @@ int main() {
     glEnableVertexAttribArray(0);
     // Bind the 0th VBO. Set up attribute pointers to location 1 for normals.
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)sizeof(glm::vec3)); // skip the first Vertex.pos
-    glEnableVertexAttribArray(1);*/
+    glEnableVertexAttribArray(1);
 
 
 
@@ -491,9 +491,9 @@ int main() {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // Attractor Points
-        glBindVertexArray(VAO);
+        /*glBindVertexArray(VAO);
         sp.setCameraViewProj("cameraViewProj", camera.GetViewProj());
-        glDrawElements(GL_POINTS, (GLsizei) tempPtsIdx.size(), GL_UNSIGNED_INT, 0);
+        glDrawElements(GL_POINTS, (GLsizei) tempPtsIdx.size(), GL_UNSIGNED_INT, 0);*/
 
         // old cubes / new bud points
         glBindVertexArray(VAO2);
