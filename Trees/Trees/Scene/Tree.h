@@ -51,15 +51,15 @@ public:
 
 // For BH Model
 #define ALPHA 1.0f // proportionality constant for resource flow computation
-#define LAMBDA 0.5f
+#define LAMBDA 0.6f
 
 // For Addition of new shoots
-#define OPTIMAL_GROWTH_DIR_WEIGHT 0.7f
+#define OPTIMAL_GROWTH_DIR_WEIGHT 0.1f
 #define TROPISM_DIR_WEIGHT 0.0f
 #define TROPISM_VECTOR glm::vec3(0.0f, -1.0f, 0.0f)
 
 // For branch radius computation
-#define MINIMUM_BRANCH_RADIUS 0.2f // Radius of outermost branches
+#define MINIMUM_BRANCH_RADIUS 0.5f // Radius of outermost branches
 #define PIPE_EXPONENT 2.0f // somewhere between 2 and 3 usually according to the paper
 
 /// Definition of structures

@@ -58,30 +58,45 @@ void Mesh::LoadFromFile(const char* filepath) {
 Intersection Triangle::Intersect(const Ray& r) const {
 
     //1. Ray-plane intersection
-    /*float t = glm::dot(planeNormal, (points[0] - r.GetOrigin())) / glm::dot(planeNormal, r.GetDirection());
-    if (t < 0) return Intersection();
+    const float t = glm::dot(planeNormal, (points[0] - r.GetOrigin())) / glm::dot(planeNormal, r.GetDirection());
+    if (t < 0) {
+        return Intersection();
+    }
 
-    glm::vec3 P = r.GetOrigin() + t * r.GetDirection();
+    const glm::vec3 P = r.GetOrigin() + t * r.GetDirection();
     //2. Barycentric test
-    float S = 0.5f * glm::length(glm::cross(points[0] - points[1], points[0] - points[2]));
-    float s1 = 0.5f * glm::length(glm::cross(P - points[1], P - points[2])) / S;
-    float s2 = 0.5f * glm::length(glm::cross(P - points[2], P - points[0])) / S;
-    float s3 = 0.5f * glm::length(glm::cross(P - points[0], P - points[1])) / S;
-    float sum = s1 + s2 + s3;
+    const float S = 1.0f / (0.5f * glm::length(glm::cross(points[0] - points[1], points[0] - points[2])));
+    const float S1 = 0.5f * glm::length(glm::cross(P - points[1], P - points[2]));
+    const float S2 = 0.5f * glm::length(glm::cross(P - points[2], P - points[0]));
+    const float S3 = 0.5f * glm::length(glm::cross(P - points[0], P - points[1]));
+    const float sum = (S1 + S2 + S3) * S;
 
-    if (s1 >= 0 && s1 <= 1 && s2 >= 0 && s2 <= 1 && s3 >= 0 && s3 <= 1 && fequal(sum, 1.0f)) {
+    if ((S1 >= 0.0f && S1 <= 1.0f) && (S2 >= 0.0f && S2 <= 1.0f) && (S3 >= 0.0f && S3 <= 1.0f) && std::fabsf(sum - 1.0f) < FLT_EPSILON) {
         return Intersection(P, planeNormal, t);
-    }*/
+    }
     return Intersection();
 }
 
 Intersection Mesh::Intersect(const Ray& r) const {
-    Intersection finalIsect = Intersection();
-    for (unsigned int i = 0; i < (unsigned int)triangles.size(); ++i) {
+    Intersection finalIsect = triangles[0].Intersect(r);
+    for (unsigned int i = 1; i < (unsigned int)triangles.size(); ++i) {
         const Intersection isect = triangles[i].Intersect(r);
-        if (isect.IsValid() && isect.GetT() < finalIsect.GetT()) {
+        if (isect.IsValid() && (!finalIsect.IsValid() || isect.GetT() < finalIsect.GetT())) {
             finalIsect = isect;
         }
     }
     return finalIsect;
+}
+
+const bool Mesh::Contains(const glm::vec3 & p) const {
+    Ray r = Ray(p, glm::vec3(1.0f, 0.0f, 0.0f)); // Ray direction is arbitrary. It can be anything
+    Intersection isect = Intersect(r);
+    unsigned int isectCounter = 0;
+    while (isect.IsValid()) {
+        ++isectCounter;
+        isectCounter %= 2;
+        r = isect.SpawnRayAtPoint(r);
+        isect = Intersect(r);
+    }
+    return isectCounter == 1; // There was an odd number of intersections
 }

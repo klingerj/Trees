@@ -13,6 +13,7 @@ struct Vertex {
 
 class Triangle {
 private:
+    glm::vec3 planeNormal;
     std::vector<glm::vec3> points;
 public:
     Triangle() {
@@ -23,9 +24,7 @@ public:
         points.emplace_back(p);
     }
     Intersection Intersect(const Ray& r) const;
-    void ComputePlaneNormal() {
-        // TODO compute plane normal via cross product here
-    }
+    inline void ComputePlaneNormal() { planeNormal = glm::normalize(glm::cross(points[1] - points[0], points[2] - points[1])); }
 };
 
 // TODO: refactor, remove the excess storage of vertices/indices
@@ -44,5 +43,6 @@ public:
     void LoadFromFile(const char* filepath);
     inline const std::vector<Vertex>& GetVertices() const { return vertices; }
     inline const std::vector<unsigned int>& GetIndices() const { return indices; }
-    Intersection Intersect(const Ray& r) const;
+    Intersection Intersect(const Ray& r) const; // Intersect a single ray with this mesh
+    const bool Contains(const glm::vec3& p) const; // Check if a point intersects this mesh an odd number of times
 };
