@@ -22,9 +22,9 @@
 //#define CUBES
 
 // For 5-tree scene, eye and ref: glm::vec3(0.25f, 0.5f, 3.5f), glm::vec3(0.25f, 0.0f, 0.0f
-Camera camera = Camera(glm::vec3(0.0f, 3.0f, 0.0f), 0.7853981634f, // 45 degrees vs 75 degrees
-(float)VIEWPORT_WIDTH_INITIAL / VIEWPORT_HEIGHT_INITIAL, 0.01f, 2000.0f, 10.0f, 0.0f, 5.0f);
-const float camMoveSensitivity = 0.001f;
+Camera camera = Camera(glm::vec3(0.0f, 7.63f, 0.0f), 0.7853981634f, // 45 degrees vs 75 degrees
+(float)VIEWPORT_WIDTH_INITIAL / VIEWPORT_HEIGHT_INITIAL, 0.01f, 2000.0f, 0.0f, -31.74f, 28.4f);
+const float camMoveSensitivity = 0.02f;
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     glViewport(0, 0, width, height);
@@ -33,6 +33,7 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
 
 // Keyboard controls
 void processInput(GLFWwindow *window) {
+
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
         glfwSetWindowShouldClose(window, true);
     } else if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
@@ -56,8 +57,8 @@ void processInput(GLFWwindow *window) {
 
 int main() {
     // Test Mesh Loading
-    //Mesh m = Mesh();
-    //m.LoadFromFile("OBJs/plane.obj");
+    Mesh m = Mesh();
+    m.LoadFromFile("OBJs/helixRot.obj");
 
     // GLFW Window Setup
     glfwInit();
@@ -93,7 +94,7 @@ int main() {
     // Is it faster to initialize a vector of points with # and value and then set the values, or to push_back values onto an empty list
     // Answer to that: https://stackoverflow.com/questions/32199388/what-is-better-reserve-vector-capacity-preallocate-to-size-or-push-back-in-loo
     // Best options seem to be preallocate or emplace_back with reserve
-    const unsigned int numPoints = 100000;
+    const unsigned int numPoints = 1000000; //300k for heart
     unsigned int numPointsIncluded = 0;
     std::vector<glm::vec3> points = std::vector<glm::vec3>();
 
@@ -107,12 +108,22 @@ int main() {
     auto start = std::chrono::system_clock::now();
     // Unfortunately, we can't really do any memory preallocating because we don't actually know how many points will be included
     for (unsigned int i = 0; i < numPoints; ++i) {
-        const glm::vec3 p = glm::vec3(dis(rng) * 10.0f, dis(rng) * 10.0f, dis(rng) * 10.0f); // for big cube growth chamber: scales of 10, 20, 10
-        if (glm::length(p) < 10.0f /*p.y > 0.2f*/ /*&& (p.x * p.x + p.y * p.y) > 0.2f*/) {
-            points.emplace_back(p + glm::vec3(0.0f, 0.0f, 0.0f));
+        const glm::vec3 p = glm::vec3(dis(rng) * 2.0f /** -0.6f*/, dis(rng) * 2.0f /*0.5f*/  /** 0.012f*/, dis(rng) * 4.0f /** 0.113f*/); // for heart shape: all have scale 6.0f
+        /*if ((glm::length(p) < 4.0f ||
+            glm::length(p + glm::vec3(3.5f, -2.5f, 0.0f)) < 3.0f ||
+            glm::length(p + glm::vec3(-3.5f, -2.5f, 0.0f)) < 3.0f) &&
+            std::sqrt(p.x * p.x + p.y * p.y) > 2.0f) {
+            points.emplace_back((p + glm::vec3(0.0f, 4.0f, 0.0f)) * 5.0f);
+            ++numPointsIncluded;
+        }*/
+        
+        // Intersect with mesh instead
+        if (m.Contains(p)) {
+            points.emplace_back(p);
             ++numPointsIncluded;
         }
     }
+
     // Create the actual AttractorPoints
     const float killDist = 0.05f;
     std::vector<AttractorPoint> attractorPoints = std::vector<AttractorPoint>();
@@ -124,6 +135,7 @@ int main() {
     std::chrono::duration<double> elapsed_seconds = end - start;
     std::time_t end_time = std::chrono::system_clock::to_time_t(end);
     std::cout << "Elapsed time for Attractor Point Generation: " << elapsed_seconds.count() << "s\n";
+    std::cout << "Number of Attractor Points: " << numPointsIncluded << "\n\n";
 
     // new tree generation
     Tree tree = Tree(glm::vec3(0.0f, 0.0f, 0.0f));
@@ -330,21 +342,24 @@ int main() {
     ShaderProgram sp3 = ShaderProgram("Shaders/mesh-vert.vert", "Shaders/mesh-frag.frag");
 
     // Array/Buffer Objects
-    unsigned int VAO, VAO2, VAO3, VAO4;
-    unsigned int VBO, VBO2, VBO3, VBO4;
-    unsigned int EBO, EBO2, EBO3, EBO4;
+    unsigned int VAO, VAO2, VAO3, VAO4, VAO5;
+    unsigned int VBO, VBO2, VBO3, VBO4, VBO5;
+    unsigned int EBO, EBO2, EBO3, EBO4, EBO5;
     glGenVertexArrays(1, &VAO);
     glGenVertexArrays(1, &VAO2);
     glGenVertexArrays(1, &VAO3);
     glGenVertexArrays(1, &VAO4);
+    glGenVertexArrays(1, &VAO5);
     glGenBuffers(1, &VBO);
     glGenBuffers(1, &VBO2);
     glGenBuffers(1, &VBO3);
     glGenBuffers(1, &VBO4);
+    glGenBuffers(1, &VBO5);
     glGenBuffers(1, &EBO);
     glGenBuffers(1, &EBO2);
     glGenBuffers(1, &EBO3);
     glGenBuffers(1, &EBO4);
+    glGenBuffers(1, &EBO5);
 
     // VAO Binding
     glBindVertexArray(VAO);
@@ -436,13 +451,13 @@ int main() {
         std::cout << m.GetIndices()[i] << std::endl;
     }*/
 
-    //std::vector<unsigned int> idx = m.GetIndices();
-
     // Mesh buffers
-    /*glBindVertexArray(VAO3);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO3);
+    std::vector<unsigned int> idx = m.GetIndices();
+
+    glBindVertexArray(VAO5);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO5);
     glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex) * m.GetVertices().size(), m.GetVertices().data(), GL_STATIC_DRAW);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO3);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO5);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * idx.size(), idx.data(), GL_STATIC_DRAW);
     // Attribute linking
 
@@ -452,8 +467,14 @@ int main() {
     // Bind the 0th VBO. Set up attribute pointers to location 1 for normals.
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)sizeof(glm::vec3)); // skip the first Vertex.pos
     glEnableVertexAttribArray(1);
-    glBindVertexArray(0);*/
 
+
+
+
+
+
+    // GL Params or whatever
+    // TODO Create an init() function
     glPointSize(2);
     glLineWidth(1);
     glEnable(GL_DEPTH_TEST);
@@ -470,9 +491,9 @@ int main() {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // Attractor Points
-        glBindVertexArray(VAO);
+        /*glBindVertexArray(VAO);
         sp.setCameraViewProj("cameraViewProj", camera.GetViewProj());
-        glDrawElements(GL_POINTS, (GLsizei) tempPtsIdx.size(), GL_UNSIGNED_INT, 0);
+        glDrawElements(GL_POINTS, (GLsizei) tempPtsIdx.size(), GL_UNSIGNED_INT, 0);*/
 
         // old cubes / new bud points
         glBindVertexArray(VAO2);
@@ -487,13 +508,18 @@ int main() {
 
         glBindVertexArray(VAO3);
         // new tree branches
-        sp3.setCameraViewProj("cameraViewProj", camera.GetViewProj());
+        //sp3.setCameraViewProj("cameraViewProj", camera.GetViewProj());
         #ifndef INTERNODE_CUBES
         // draw GL_LINES intenodes
         glDrawElements(GL_LINES, (GLsizei)branchIndices.size(), GL_UNSIGNED_INT, 0);
         #else
         // do nothing idk
         #endif
+
+        // Draw whatever mesh
+        /*sp3.setCameraViewProj("cameraViewProj", camera.GetViewProj());
+        glBindVertexArray(VAO5);
+        glDrawElements(GL_TRIANGLES, (GLsizei)idx.size(), GL_UNSIGNED_INT, 0);*/
 
         /*glBindVertexArray(VAO4);
         sp.setCameraViewProj("cameraViewProj", camera.GetViewProj());
@@ -507,14 +533,17 @@ int main() {
     glDeleteVertexArrays(1, &VAO2);
     glDeleteVertexArrays(1, &VAO3);
     glDeleteVertexArrays(1, &VAO4);
+    glDeleteVertexArrays(1, &VAO5);
     glDeleteBuffers(1, &VBO);
     glDeleteBuffers(1, &VBO2);
     glDeleteBuffers(1, &VBO3);
     glDeleteBuffers(1, &VBO4);
+    glDeleteBuffers(1, &VBO5);
     glDeleteBuffers(1, &EBO);
     glDeleteBuffers(1, &EBO2);
     glDeleteBuffers(1, &EBO3);
     glDeleteBuffers(1, &EBO4);
+    glDeleteBuffers(1, &EBO5);
 
     glfwTerminate();
     return 0;

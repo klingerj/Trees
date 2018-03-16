@@ -26,7 +26,7 @@ void TreeBranch::AddAxillaryBuds(const Bud& sourceBud, const int numBuds, const 
         const glm::mat4 budRotMatGoldenAngle = glm::toMat4(branchQuatGoldenAngle);
         const glm::vec3 budGrowthGoldenAngle = glm::normalize(glm::vec3(budRotMatGoldenAngle * glm::vec4(budGrowthDir, 0.0f)));
         newBuds.emplace_back(terminalBud.point + (float)b * newShootGrowthDir * internodeLength, budGrowthGoldenAngle, glm::vec3(0.0f),
-            BUD_OCCUPANCY_RADIUS, 0.0f, 0.0f, 0.0f, -1, internodeLength, 0.0f, 0, AXILLARY, DORMANT);
+            0.0f, 0.0f, 0.0f, -1, internodeLength, 0.0f, 0, AXILLARY, DORMANT);
     }
     // Update terminal bud position
     terminalBud.point = terminalBud.point + (float)(newBuds.size()) * growthDirection * internodeLength;
@@ -234,7 +234,7 @@ void Tree::AppendNewShoots() {
         for (unsigned int bu = 0; bu < numBuds; ++bu) {
             Bud& currentBud = buds[bu];
             const int numMetamers = static_cast<int>(std::floor(currentBud.resourceBH));
-            const float metamerLength = currentBud.resourceBH / (float)numMetamers * 0.35f; // TODO remove fake scale *************
+            const float metamerLength = currentBud.resourceBH / (float)numMetamers * INTERNODE_SCALE; // TODO remove fake scale *************
             switch (currentBud.type) {
             case TERMINAL: {
                 if (numMetamers > 0) {

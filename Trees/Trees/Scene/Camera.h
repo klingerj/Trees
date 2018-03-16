@@ -2,6 +2,7 @@
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 #include "Globals.h"
+#include <iostream>
 
 class Camera {
 private:

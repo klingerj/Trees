@@ -139,6 +139,7 @@
     <ClCompile Include="..\..\Libraries\glad\src\glad.c" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="OpenGL\ShaderProgram.cpp" />
+    <ClCompile Include="Raytracing\Raytracing.cpp" />
     <ClCompile Include="Scene\Camera.cpp" />
     <ClCompile Include="Scene\Mesh.cpp" />
     <ClCompile Include="Scene\Tree.cpp" />
@@ -153,6 +154,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="OpenGL\ShaderProgram.h" />
+    <ClInclude Include="Raytracing\Raytracing.h" />
     <ClInclude Include="Scene\Camera.h" />
     <ClInclude Include="Scene\Globals.h" />
     <ClInclude Include="Scene\Mesh.h" />
