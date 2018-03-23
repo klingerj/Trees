@@ -50,8 +50,8 @@ public:
 #define COS_THETA_SMALL 0.86602540378 // cos(pi6)
 
 // For BH Model
-#define ALPHA 1.2f // proportionality constant for resource flow computation
-#define LAMBDA 0.6f
+#define ALPHA 1.0f // proportionality constant for resource flow computation
+#define LAMBDA 0.5f
 
 // For Addition of new shoots
 #define OPTIMAL_GROWTH_DIR_WEIGHT 0.15f
@@ -116,9 +116,8 @@ public:
         buds.reserve(8); // Reserve memory beforehand so we are less likely to have to resize the array later on. Performance test this.
         buds.emplace_back(p, glm::vec3(growthDirection), glm::vec3(0.0f), BUD_OCCUPANCY_RADIUS, 0.0f, 0.0f, 0.0f, -1, 0.5f, 0.0f, 0, TERMINAL, DORMANT); // add the terminal bud for this branch. Applies a prelim internode length (tweak, TODO)
     }
-    inline const std::vector<Bud>& GetBuds() const {
-        return buds;
-    }
+    inline const std::vector<Bud>& GetBuds() const { return buds; }
+    inline const int GetAxisOrder() const { return axisOrder; }
     // Adds a certain number of axillary buds to the list of buds, starting at the index just before the terminal bud
     void AddAxillaryBuds(const Bud& sourceBud, const int numBuds, const float internodeLength);
 };

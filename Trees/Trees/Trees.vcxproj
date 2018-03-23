@@ -162,6 +162,8 @@
       <CodeGeneration Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">compute_61,sm_61</CodeGeneration>
       <CodeGeneration Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">compute_61,sm_61</CodeGeneration>
     </CudaCompile>
+    <None Include="Shaders\leaf-frag.frag" />
+    <None Include="Shaders\leaf-vert.vert" />
     <None Include="Shaders\mesh-frag.frag" />
     <None Include="Shaders\mesh-vert.vert" />
     <None Include="Shaders\point-frag.frag" />

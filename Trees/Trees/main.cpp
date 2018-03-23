@@ -24,7 +24,7 @@
 // For 5-tree scene, eye and ref: glm::vec3(0.25f, 0.5f, 3.5f), glm::vec3(0.25f, 0.0f, 0.0f
 Camera camera = Camera(glm::vec3(0.0f, 3.0f, 0.0f), 0.7853981634f, // 45 degrees vs 75 degrees
 (float)VIEWPORT_WIDTH_INITIAL / VIEWPORT_HEIGHT_INITIAL, 0.01f, 2000.0f, 10.0f, 0.0f, 5.0f);
-const float camMoveSensitivity = 0.001f;
+const float camMoveSensitivity = 0.01f;
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     glViewport(0, 0, width, height);
@@ -56,8 +56,8 @@ void processInput(GLFWwindow *window) {
 
 int main() {
     // Test Mesh Loading
-    //Mesh m = Mesh();
-    //m.LoadFromFile("OBJs/plane.obj");
+    Mesh m = Mesh();
+    m.LoadFromFile("OBJs/leaf.obj");
 
     // GLFW Window Setup
     glfwInit();
@@ -109,7 +109,7 @@ int main() {
     for (unsigned int i = 0; i < numPoints; ++i) {
         const glm::vec3 p = glm::vec3(dis(rng) * 10.0f, dis(rng) * 10.0f, dis(rng) * 10.0f); // for big cube growth chamber: scales of 10, 20, 10
         if (glm::length(p) < 10.0f /*p.y > 0.2f*/ /*&& (p.x * p.x + p.y * p.y) > 0.2f*/) {
-            points.emplace_back(p + glm::vec3(0.0f, 0.0f, 0.0f));
+            points.emplace_back(p + glm::vec3(0.0f, 10.0f, 0.0f));
             ++numPointsIncluded;
         }
     }
@@ -242,9 +242,24 @@ int main() {
     std::vector<unsigned int> budIndices = std::vector<unsigned int>();
     std::vector<unsigned int> branchIndices = std::vector<unsigned int>(); // one gl line corresponds to one internode. These indices will use the budPoints vector.
 
-    std::vector<glm::vec3> internodePoints = std::vector <glm::vec3>();
-    std::vector<glm::vec3> internodeNormals = std::vector <glm::vec3>();
-    std::vector<unsigned int> internodeIndices = std::vector <unsigned int>();
+    std::vector<glm::vec3> internodePoints = std::vector<glm::vec3>();
+    std::vector<glm::vec3> internodeNormals = std::vector<glm::vec3>();
+    std::vector<unsigned int> internodeIndices = std::vector<unsigned int>();
+
+    // Leaves
+    // extract the position and normal data from the leaf mesh
+    std::vector<glm::vec3> leafGeomPoints = std::vector<glm::vec3>();
+    std::vector<glm::vec3> leafGeomNormals = std::vector<glm::vec3>();
+    std::vector<unsigned int> leafGeomIndices = m.GetIndices();
+    const std::vector<Vertex>& leafVertices = m.GetVertices();
+    for (int i = 0; i < leafVertices.size(); ++i) {
+        leafGeomPoints.emplace_back(leafVertices[i].pos);
+        leafGeomNormals.emplace_back(leafVertices[i].nor);
+    }
+
+    std::vector<glm::vec3> leafPoints = std::vector<glm::vec3>();
+    std::vector<glm::vec3> leafNormals = std::vector<glm::vec3>();
+    std::vector<unsigned int> leafIndices = std::vector<unsigned int>();
 
     // get the points vectors
     const std::vector<TreeBranch>& branches = tree.GetBranches();
@@ -284,7 +299,6 @@ int main() {
 
             std::vector<glm::vec3> cubePointsTrans = std::vector<glm::vec3>();
             std::vector<glm::vec3> cubeNormalsTrans = std::vector<glm::vec3>();
-            // Interleave VBO data or nah
             for (int i = 0; i < cubePoints.size(); ++i) {
                 cubePointsTrans.emplace_back(glm::vec3(branchTransform * glm::vec4(cubePoints[i], 1.0f)));
                 glm::vec3 transformedNormal = glm::normalize(glm::vec3(glm::inverse(glm::transpose(branchTransform)) * glm::vec4(cubeNormals[i], 0.0f)));
@@ -300,6 +314,27 @@ int main() {
             internodePoints.insert(internodePoints.end(), cubePointsTrans.begin(), cubePointsTrans.end());
             internodeNormals.insert(internodeNormals.end(), cubeNormalsTrans.begin(), cubeNormalsTrans.end());
             internodeIndices.insert(internodeIndices.end(), cubeIndicesNew.begin(), cubeIndicesNew.end());
+
+            // Leaves
+            if (currentBud.type == AXILLARY && branches[br].GetAxisOrder() > 1) {
+                std::vector<glm::vec3> leafPointsTrans = std::vector<glm::vec3>();
+                std::vector<glm::vec3> leafNormalsTrans = std::vector<glm::vec3>();
+                const glm::mat4 leafTransform = glm::translate(glm::mat4(1.0f), internodeEndPoint) * glm::toMat4(glm::angleAxis(std::acos(glm::dot(currentBud.naturalGrowthDir, WORLD_UP_VECTOR)), glm::normalize(glm::cross(WORLD_UP_VECTOR, currentBud.naturalGrowthDir))));
+                for (int i = 0; i < leafGeomPoints.size(); ++i) {
+                    leafPointsTrans.emplace_back(glm::vec3(leafTransform * glm::vec4(leafGeomPoints[i] * 0.2f, 1.0f)));
+                    glm::vec3 transformedNormal = glm::normalize(glm::vec3(glm::inverse(glm::transpose(leafTransform)) * glm::vec4(leafGeomNormals[i], 0.0f)));
+                    leafNormalsTrans.emplace_back(transformedNormal);
+                }
+
+                std::vector<unsigned int> leafIndicesNew = std::vector<unsigned int>();
+                for (int i = 0; i < leafGeomIndices.size(); ++i) {
+                    const unsigned int size = (unsigned int)leafPoints.size();
+                    leafIndicesNew.emplace_back(leafGeomIndices[i] + size); // offset this set of indices by the # of positions. Divide by two bc it contains positions and normals
+                }
+                leafPoints.insert(leafPoints.end(), leafPointsTrans.begin(), leafPointsTrans.end());
+                leafNormals.insert(leafNormals.end(), leafNormalsTrans.begin(), leafNormalsTrans.end());
+                leafIndices.insert(leafIndices.end(), leafIndicesNew.begin(), leafIndicesNew.end());
+            }
 
             #else // old GL_LINES code
             if (bu < buds.size() - 1) { // proper indexing, just go with it
@@ -328,23 +363,29 @@ int main() {
     ShaderProgram sp = ShaderProgram("Shaders/point-vert.vert", "Shaders/point-frag.frag");
     ShaderProgram sp2 = ShaderProgram("Shaders/treeNode-vert.vert", "Shaders/treeNode-frag.frag");
     ShaderProgram sp3 = ShaderProgram("Shaders/mesh-vert.vert", "Shaders/mesh-frag.frag");
+    ShaderProgram sp4 = ShaderProgram("Shaders/leaf-vert.vert", "Shaders/leaf-frag.frag");
 
     // Array/Buffer Objects
-    unsigned int VAO, VAO2, VAO3, VAO4;
-    unsigned int VBO, VBO2, VBO3, VBO4;
-    unsigned int EBO, EBO2, EBO3, EBO4;
+    unsigned int VAO, VAO2, VAO3, VAO4, VAO6;
+    unsigned int VBO, VBO2, VBO3, VBO4, VBO6, VBO7;
+    unsigned int EBO, EBO2, EBO3, EBO4, EBO6, EBO7;
     glGenVertexArrays(1, &VAO);
     glGenVertexArrays(1, &VAO2);
     glGenVertexArrays(1, &VAO3);
     glGenVertexArrays(1, &VAO4);
+    glGenVertexArrays(1, &VAO6);
     glGenBuffers(1, &VBO);
     glGenBuffers(1, &VBO2);
     glGenBuffers(1, &VBO3);
     glGenBuffers(1, &VBO4);
+    glGenBuffers(1, &VBO6);
+    glGenBuffers(1, &VBO7);
     glGenBuffers(1, &EBO);
     glGenBuffers(1, &EBO2);
     glGenBuffers(1, &EBO3);
     glGenBuffers(1, &EBO4);
+    glGenBuffers(1, &EBO6);
+    glGenBuffers(1, &EBO7);
 
     // VAO Binding
     glBindVertexArray(VAO);
@@ -419,30 +460,38 @@ int main() {
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
     glEnableVertexAttribArray(0);
 
+    // Leaves
+    glBindVertexArray(VAO6);
+    // Points
+    glBindBuffer(GL_ARRAY_BUFFER, VBO6);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * leafPoints.size(), leafPoints.data(), GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO6);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * leafIndices.size(), leafIndices.data(), GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    // Normals
+    glBindBuffer(GL_ARRAY_BUFFER, VBO7);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * leafNormals.size(), leafNormals.data(), GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO7);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * leafIndices.size(), leafIndices.data(), GL_STATIC_DRAW);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
+    glEnableVertexAttribArray(1);
+
     end = std::chrono::system_clock::now();
     elapsed_seconds = end - start;
     end_time = std::chrono::system_clock::to_time_t(end);
     std::cout << "Elapsed time for GL calls and ShaderPrograms and VAO/VBO/EBO Creation: " << elapsed_seconds.count() << "s\n";
 
+    // Mesh VBO stuff
 
-
-    // This was TinyOBJ Debugging
-    /*for (int i = 0; i < m.GetVertices().size(); i++) {
-        std::cout << m.GetVertices()[i].pos.x << m.GetVertices()[i].pos.y << m.GetVertices()[i].pos.z << std::endl;
-        std::cout << m.GetVertices()[i].nor.x << m.GetVertices()[i].nor.y << m.GetVertices()[i].nor.z << std::endl;
-    }
-
-    for (int i = 0; i < m.GetIndices().size(); i++) {
-        std::cout << m.GetIndices()[i] << std::endl;
-    }*/
-
-    //std::vector<unsigned int> idx = m.GetIndices();
+    /*std::vector<unsigned int> idx = m.GetIndices();
 
     // Mesh buffers
-    /*glBindVertexArray(VAO3);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO3);
+    glBindVertexArray(VAO6);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO6);
     glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex) * m.GetVertices().size(), m.GetVertices().data(), GL_STATIC_DRAW);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO3);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO6);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * idx.size(), idx.data(), GL_STATIC_DRAW);
     // Attribute linking
 
@@ -470,9 +519,9 @@ int main() {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // Attractor Points
-        glBindVertexArray(VAO);
+        /*glBindVertexArray(VAO);
         sp.setCameraViewProj("cameraViewProj", camera.GetViewProj());
-        glDrawElements(GL_POINTS, (GLsizei) tempPtsIdx.size(), GL_UNSIGNED_INT, 0);
+        glDrawElements(GL_POINTS, (GLsizei) tempPtsIdx.size(), GL_UNSIGNED_INT, 0);*/
 
         // old cubes / new bud points
         glBindVertexArray(VAO2);
@@ -499,6 +548,16 @@ int main() {
         sp.setCameraViewProj("cameraViewProj", camera.GetViewProj());
         glDrawElements(GL_POINTS, (GLsizei)budIndices.size(), GL_UNSIGNED_INT, 0);*/
 
+        // draw whatever mesh
+        /*sp4.setCameraViewProj("cameraViewProj", camera.GetViewProj());
+        glBindVertexArray(VAO6);
+        glDrawElements(GL_TRIANGLES, (GLsizei)idx.size(), GL_UNSIGNED_INT, 0);*/
+
+        // draw leaves
+        glBindVertexArray(VAO6);
+        sp4.setCameraViewProj("cameraViewProj", camera.GetViewProj());
+        glDrawElements(GL_TRIANGLES, (GLsizei)leafIndices.size(), GL_UNSIGNED_INT, 0);
+
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
@@ -507,14 +566,19 @@ int main() {
     glDeleteVertexArrays(1, &VAO2);
     glDeleteVertexArrays(1, &VAO3);
     glDeleteVertexArrays(1, &VAO4);
+    glDeleteVertexArrays(1, &VAO6);
     glDeleteBuffers(1, &VBO);
     glDeleteBuffers(1, &VBO2);
     glDeleteBuffers(1, &VBO3);
     glDeleteBuffers(1, &VBO4);
+    glDeleteBuffers(1, &VBO6);
+    glDeleteBuffers(1, &VBO7);
     glDeleteBuffers(1, &EBO);
     glDeleteBuffers(1, &EBO2);
     glDeleteBuffers(1, &EBO3);
     glDeleteBuffers(1, &EBO4);
+    glDeleteBuffers(1, &EBO6);
+    glDeleteBuffers(1, &EBO7);
 
     glfwTerminate();
     return 0;
