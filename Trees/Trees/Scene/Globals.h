@@ -4,7 +4,7 @@
 #define VIEWPORT_WIDTH_INITIAL 800
 #define VIEWPORT_HEIGHT_INITIAL 600
 
-#define NUM_ITERATIONS 8
+#define NUM_ITERATIONS 30
 
 #define WORLD_UP_VECTOR glm::vec3(0.0f, 1.0f, 0.0f)
 

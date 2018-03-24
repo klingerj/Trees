@@ -23,8 +23,8 @@
 
 // For 5-tree scene, eye and ref: glm::vec3(0.25f, 0.5f, 3.5f), glm::vec3(0.25f, 0.0f, 0.0f
 Camera camera = Camera(glm::vec3(0.0f, 3.0f, 0.0f), 0.7853981634f, // 45 degrees vs 75 degrees
-(float)VIEWPORT_WIDTH_INITIAL / VIEWPORT_HEIGHT_INITIAL, 0.01f, 2000.0f, 10.0f, 0.0f, 5.0f);
-const float camMoveSensitivity = 0.01f;
+(float)VIEWPORT_WIDTH_INITIAL / VIEWPORT_HEIGHT_INITIAL, 0.01f, 2000.0f, 10.0f, 0.0f, 10.0f);
+const float camMoveSensitivity = 0.1f;
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     glViewport(0, 0, width, height);
@@ -108,7 +108,7 @@ int main() {
     // Unfortunately, we can't really do any memory preallocating because we don't actually know how many points will be included
     for (unsigned int i = 0; i < numPoints; ++i) {
         const glm::vec3 p = glm::vec3(dis(rng) * 10.0f, dis(rng) * 10.0f, dis(rng) * 10.0f); // for big cube growth chamber: scales of 10, 20, 10
-        if (glm::length(p) < 10.0f /*p.y > 0.2f*/ /*&& (p.x * p.x + p.y * p.y) > 0.2f*/) {
+        if (p.x * p.x + p.z * p.z < 10.0f /*p.y > 0.2f*/ /*&& (p.x * p.x + p.y * p.y) > 0.2f*/) {
             points.emplace_back(p + glm::vec3(0.0f, 10.0f, 0.0f));
             ++numPointsIncluded;
         }
@@ -283,19 +283,23 @@ int main() {
             // Back to rotation
 
             // orientation is messed up in certain cases still...
-            const bool axesAreAligned = std::abs(glm::dot(branchAxis, WORLD_UP_VECTOR)) > 0.99f;
-            glm::vec3 crossVec = axesAreAligned ? glm::vec3(1.0f, 0.0f, 0.0f) : WORLD_UP_VECTOR; // avoid glm::cross returning a nan or 0-vector
-            const glm::vec3 axis = glm::normalize(glm::cross(crossVec, branchAxis));
+            //const bool axesAreAligned = std::abs(glm::dot(branchAxis, WORLD_UP_VECTOR)) > 0.99f;
+            //glm::vec3 crossVec = axesAreAligned ? glm::vec3(1.0f, 0.0f, 0.0f) : WORLD_UP_VECTOR; // avoid glm::cross returning a nan or 0-vector
             const float angle = std::acos(glm::dot(branchAxis, WORLD_UP_VECTOR));
-
-            const glm::quat branchQuat = glm::angleAxis(angle, axis);
-            glm::mat4 branchTransform = glm::toMat4(branchQuat); // initially just a rotation matrix, eventually stores the entire transformation
+            glm::mat4 branchTransform;
+            if (angle > 0.01f) {
+                const glm::vec3 axis = glm::normalize(glm::cross(WORLD_UP_VECTOR, branchAxis));
+                const glm::quat branchQuat = glm::angleAxis(angle, axis);
+                branchTransform = glm::toMat4(branchQuat); // initially just a rotation matrix, eventually stores the entire transformation
+            } else { // if it's pretty much straight up, call it straight up
+                branchTransform = glm::mat4(1.0f);
+            }
 
             // Compute the translation component - set to the the base branch point + 0.5 * internodeLength, placing the cylinder at the halfway point
             const glm::vec3 translation = internodeEndPoint - 0.5f * branchAxis * currentBud.internodeLength;
 
             // Create an overall transformation matrix of translation and rotation
-            branchTransform = glm::translate(glm::mat4(1.0f), translation) * branchTransform * glm::scale(glm::mat4(1.0f), glm::vec3(currentBud.branchRadius * 0.01f, currentBud.internodeLength * 0.5f, currentBud.branchRadius * 0.01f));
+            branchTransform = glm::translate(glm::mat4(1.0f), translation) * branchTransform * glm::scale(glm::mat4(1.0f), glm::vec3(/*currentBud.branchRadius * 0.02f*/0.01f, currentBud.internodeLength * 0.5f, /*currentBud.branchRadius * 0.02f*/ 0.01f));
 
             std::vector<glm::vec3> cubePointsTrans = std::vector<glm::vec3>();
             std::vector<glm::vec3> cubeNormalsTrans = std::vector<glm::vec3>();
@@ -316,12 +320,14 @@ int main() {
             internodeIndices.insert(internodeIndices.end(), cubeIndicesNew.begin(), cubeIndicesNew.end());
 
             // Leaves
-            if (currentBud.type == AXILLARY && branches[br].GetAxisOrder() > 1) {
+            if (currentBud.type == AXILLARY && currentBud.fate != FORMED_BRANCH/* && branches[br].GetAxisOrder() > 1*/) { // TODO: skip buds that are formed_branch
+                const float leafScale = 0.05f / currentBud.branchRadius; // Joe's made-up heuristic
+                if (leafScale < 0.1f) { break; }
                 std::vector<glm::vec3> leafPointsTrans = std::vector<glm::vec3>();
                 std::vector<glm::vec3> leafNormalsTrans = std::vector<glm::vec3>();
                 const glm::mat4 leafTransform = glm::translate(glm::mat4(1.0f), internodeEndPoint) * glm::toMat4(glm::angleAxis(std::acos(glm::dot(currentBud.naturalGrowthDir, WORLD_UP_VECTOR)), glm::normalize(glm::cross(WORLD_UP_VECTOR, currentBud.naturalGrowthDir))));
                 for (int i = 0; i < leafGeomPoints.size(); ++i) {
-                    leafPointsTrans.emplace_back(glm::vec3(leafTransform * glm::vec4(leafGeomPoints[i] * 0.2f, 1.0f)));
+                    leafPointsTrans.emplace_back(glm::vec3(leafTransform * glm::vec4(leafGeomPoints[i] * leafScale, 1.0f)));
                     glm::vec3 transformedNormal = glm::normalize(glm::vec3(glm::inverse(glm::transpose(leafTransform)) * glm::vec4(leafGeomNormals[i], 0.0f)));
                     leafNormalsTrans.emplace_back(transformedNormal);
                 }

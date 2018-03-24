@@ -9,7 +9,7 @@ void TreeBranch::AddAxillaryBuds(const Bud& sourceBud, const int numBuds, const 
 
     // Axillary bud orientation: Golden angle of 137.5 about the growth axis
     glm::vec3 crossVec = (std::abs(glm::dot(growthDirection, WORLD_UP_VECTOR)) > 0.99f) ? glm::vec3(1.0f, 0.0f, 0.0f) : WORLD_UP_VECTOR; // avoid glm::cross returning a nan or 0-vector
-    const glm::quat branchQuat = glm::angleAxis(glm::radians(25.0f), glm::normalize(glm::cross(growthDirection, crossVec)));
+    const glm::quat branchQuat = glm::angleAxis(glm::radians(22.5f), glm::normalize(glm::cross(growthDirection, crossVec)));
     const glm::mat4 budRotMat = glm::toMat4(branchQuat);
 
     // Direction in which the bud itself is oriented
@@ -22,14 +22,20 @@ void TreeBranch::AddAxillaryBuds(const Bud& sourceBud, const int numBuds, const 
     Bud& terminalBud = buds[buds.size() - 1]; // last bud is always the terminal bud
     for (int b = 0; b < numBuds; ++b) {
         // Account for golden angle here
-        const glm::quat branchQuatGoldenAngle = glm::angleAxis(glm::radians(137.5f * (float)(buds.size() - 1 + b)), growthDirection);
+        const float rotAmt = 137.5f * (float)((buds.size() + b) * (axisOrder + 1));
+        const glm::quat branchQuatGoldenAngle = glm::angleAxis(glm::radians(rotAmt), growthDirection);
         const glm::mat4 budRotMatGoldenAngle = glm::toMat4(branchQuatGoldenAngle);
         const glm::vec3 budGrowthGoldenAngle = glm::normalize(glm::vec3(budRotMatGoldenAngle * glm::vec4(budGrowthDir, 0.0f)));
+        
+        // Special measure taken:
+        // If this is the first bud among the buds to be added, give it the internode length of the the terminal bud./
+        // But, if this is the first time the terminal bud is growing, make the internode length 0 instead. The bud shouldn't grow at all.
+        const float internodeLengthChecked = (buds.size() == 1) ? ((b == 0) ? 0.0f : internodeLength) : ((b == 0) ? terminalBud.internodeLength : internodeLength);
         newBuds.emplace_back(terminalBud.point + (float)b * newShootGrowthDir * internodeLength, budGrowthGoldenAngle, glm::vec3(0.0f),
-            BUD_OCCUPANCY_RADIUS, 0.0f, 0.0f, 0.0f, -1, internodeLength, 0.0f, 0, AXILLARY, DORMANT);
+            BUD_OCCUPANCY_RADIUS, 0.0f, 0.0f, 0.0f, -1, internodeLengthChecked, 0.0f, 0, AXILLARY, DORMANT);
     }
     // Update terminal bud position
-    terminalBud.point = terminalBud.point + (float)(newBuds.size()) * growthDirection * internodeLength;
+    terminalBud.point = terminalBud.point + (float)(numBuds) * growthDirection * internodeLength;
     terminalBud.internodeLength = internodeLength;
     buds.insert(buds.begin() + buds.size() - 1, newBuds.begin(), newBuds.end());
 }
@@ -86,6 +92,7 @@ void Tree::PerformSpaceColonization(std::vector<AttractorPoint>& attractorPoints
     for (int br = 0; br < branches.size(); ++br) {
         const std::vector<Bud>& buds = branches[br].buds;
         for (int bu = 0; bu < buds.size(); ++bu) {
+
             auto attrPtIter = attractorPoints.begin();
             while (attrPtIter != attractorPoints.end()) {
                 const Bud& currentBud = buds[bu];
@@ -106,9 +113,9 @@ void Tree::PerformSpaceColonization(std::vector<AttractorPoint>& attractorPoints
         const unsigned int numBuds = (unsigned int)buds.size();
         for (unsigned int bu = 0; bu < numBuds; ++bu) {
             Bud& currentBud = buds[bu];
-            auto attrPtIter = attractorPoints.begin();
-            while (attrPtIter != attractorPoints.end()) {
-                if (currentBud.fate == DORMANT) { // TODO find out if buds can grow @ FORMED_BRANCH fate
+            if (currentBud.internodeLength > 0.0f && currentBud.fate == DORMANT) {
+                auto attrPtIter = attractorPoints.begin();
+                while (attrPtIter != attractorPoints.end()) {
                     glm::vec3 budToPtDir = attrPtIter->GetPoint() - currentBud.point; // Use current axillary or terminal bud
                     const float budToPtDist2 = glm::length2(budToPtDir);
                     budToPtDir = glm::normalize(budToPtDir);
@@ -137,9 +144,10 @@ void Tree::PerformSpaceColonization(std::vector<AttractorPoint>& attractorPoints
                             ++currentBud.numNearbyAttrPts;
                         }
                     }
+                    ++attrPtIter;
                 }
-                ++attrPtIter;
             }
+            
             if (currentBud.numNearbyAttrPts > 0) {
                 currentBud.optimalGrowthDir = glm::normalize(currentBud.optimalGrowthDir);
                 currentBud.environmentQuality = 1.0f;
@@ -234,24 +242,26 @@ void Tree::AppendNewShoots() {
         for (unsigned int bu = 0; bu < numBuds; ++bu) {
             Bud& currentBud = buds[bu];
             const int numMetamers = static_cast<int>(std::floor(currentBud.resourceBH));
-            const float metamerLength = currentBud.resourceBH / (float)numMetamers * 0.35f; // TODO remove fake scale *************
-            switch (currentBud.type) {
-            case TERMINAL: {
-                if (numMetamers > 0) {
-                    currentBranch.AddAxillaryBuds(currentBud, numMetamers, metamerLength);
+            if (numMetamers > 0) {
+                const float metamerLength = currentBud.resourceBH / (float)numMetamers * 0.25f; // TODO remove fake scale *************
+                switch (currentBud.type) {
+                case TERMINAL: {
+                    if (numMetamers > 0) {
+                        currentBranch.AddAxillaryBuds(currentBud, numMetamers, metamerLength);
+                    }
+                    break;
                 }
-                break;
-            }
-            case AXILLARY: {
-                if (numMetamers > 0 && currentBud.fate == DORMANT) {
-                    TreeBranch newBranch = TreeBranch(currentBud.point, currentBud.naturalGrowthDir, branches[br].axisOrder + 1, br);
-                    newBranch.AddAxillaryBuds(currentBud, numMetamers, metamerLength);
-                    branches.emplace_back(newBranch);
-                    currentBud.fate = FORMED_BRANCH;
-                    currentBud.formedBranchIndex = (int)branches.size() - 1;
+                case AXILLARY: {
+                    if (numMetamers > 0 && currentBud.fate == DORMANT) {
+                        TreeBranch newBranch = TreeBranch(currentBud.point, currentBud.naturalGrowthDir, branches[br].axisOrder + 1, br);
+                        newBranch.AddAxillaryBuds(currentBud, numMetamers, metamerLength);
+                        branches.emplace_back(newBranch);
+                        currentBud.fate = FORMED_BRANCH;
+                        currentBud.formedBranchIndex = (int)branches.size() - 1;
+                    }
+                    break;
                 }
-                break;
-            }
+                }
             }
         }
     }
@@ -265,8 +275,7 @@ float Tree::ComputeBranchRadiiRecursive(TreeBranch& branch) {
         switch (currentBud.type) {
         case TERMINAL:
             break;
-        case AXILLARY:
-        {
+        case AXILLARY: {
             switch (currentBud.fate) {
             case DORMANT:
                 //branchRadius += std::pow(currentBud.branchRadius, PIPE_EXPONENT);
