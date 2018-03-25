@@ -329,7 +329,7 @@ int main() {
 
             // Leaves
             if (currentBud.type == AXILLARY && currentBud.fate != FORMED_BRANCH/* && branches[br].GetAxisOrder() > 1*/) { // TODO: skip buds that are formed_branch
-                const float leafScale = 0.01f / currentBud.branchRadius; // Joe's made-up heuristic
+                const float leafScale = 0.005f / currentBud.branchRadius; // Joe's made-up heuristic
                 if (leafScale < 0.01) { break; }
                 std::vector<glm::vec3> leafPointsTrans = std::vector<glm::vec3>();
                 std::vector<glm::vec3> leafNormalsTrans = std::vector<glm::vec3>();

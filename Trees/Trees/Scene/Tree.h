@@ -59,8 +59,8 @@ public:
 #define TROPISM_VECTOR glm::vec3(0.0f, -1.0f, 0.0f)
 
 // For branch radius computation
-#define MINIMUM_BRANCH_RADIUS 0.2f // Radius of outermost branches
-#define PIPE_EXPONENT 2.6f // somewhere between 2 and 3 usually according to the paper
+#define MINIMUM_BRANCH_RADIUS 0.1f // Radius of outermost branches
+#define PIPE_EXPONENT 2.8f // somewhere between 2 and 3 usually according to the paper
 
 /// Definition of structures
 
