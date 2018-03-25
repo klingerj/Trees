@@ -32,7 +32,7 @@ void TreeBranch::AddAxillaryBuds(const Bud& sourceBud, const int numBuds, const 
         // But, if this is the first time the terminal bud is growing, make the internode length 0 instead. The bud shouldn't grow at all.
         const float internodeLengthChecked = (buds.size() == 1) ? ((b == 0) ? 0.0f : internodeLength) : ((b == 0) ? terminalBud.internodeLength : internodeLength);
         newBuds.emplace_back(terminalBud.point + (float)b * newShootGrowthDir * internodeLength, budGrowthGoldenAngle, glm::vec3(0.0f),
-            BUD_OCCUPANCY_RADIUS, 0.0f, 0.0f, 0.0f, -1, internodeLengthChecked, 0.0f, 0, AXILLARY, DORMANT);
+                             0.0f, 0.0f, 0.0f, -1, internodeLengthChecked, 0.0f, 0, AXILLARY, DORMANT);
     }
     // Update terminal bud position
     terminalBud.point = terminalBud.point + (float)(numBuds) * growthDirection * internodeLength;
@@ -243,16 +243,14 @@ void Tree::AppendNewShoots() {
             Bud& currentBud = buds[bu];
             const int numMetamers = static_cast<int>(std::floor(currentBud.resourceBH));
             if (numMetamers > 0) {
-                const float metamerLength = currentBud.resourceBH / (float)numMetamers * 0.25f; // TODO remove fake scale *************
+                const float metamerLength = currentBud.resourceBH / (float)numMetamers * INTERNODE_SCALE; // TODO remove fake scale *************
                 switch (currentBud.type) {
                 case TERMINAL: {
-                    if (numMetamers > 0) {
-                        currentBranch.AddAxillaryBuds(currentBud, numMetamers, metamerLength);
-                    }
+                    currentBranch.AddAxillaryBuds(currentBud, numMetamers, metamerLength);
                     break;
                 }
                 case AXILLARY: {
-                    if (numMetamers > 0 && currentBud.fate == DORMANT) {
+                    if (currentBud.fate == DORMANT) {
                         TreeBranch newBranch = TreeBranch(currentBud.point, currentBud.naturalGrowthDir, branches[br].axisOrder + 1, br);
                         newBranch.AddAxillaryBuds(currentBud, numMetamers, metamerLength);
                         branches.emplace_back(newBranch);
