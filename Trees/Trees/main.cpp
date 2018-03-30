@@ -18,8 +18,8 @@
 #include <chrono>
 #include <ctime>
 
-Camera camera = Camera(glm::vec3(0.0f, 7.63f, 0.0f), 0.7853981634f, // 45 degrees vs 75 degrees
-(float)VIEWPORT_WIDTH_INITIAL / VIEWPORT_HEIGHT_INITIAL, 0.01f, 2000.0f, 0.0f, -31.74f, 28.4f);
+Camera camera = Camera(glm::vec3(0.0f, 1.63f, 0.0f), 0.7853981634f, // 45 degrees vs 75 degrees
+(float)VIEWPORT_WIDTH_INITIAL / VIEWPORT_HEIGHT_INITIAL, 0.01f, 2000.0f, 0.0f, -31.74f, 5.4f);
 const float camMoveSensitivity = 0.03f;
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
@@ -54,7 +54,7 @@ void processInput(GLFWwindow *window) {
 int main() {
     // Test Mesh Loading
     Mesh m = Mesh();
-    m.LoadFromFile("OBJs/helixRot.obj");
+    m.LoadFromFile("OBJs/sphereLowPoly.obj");
     Mesh m2 = Mesh();
     m2.LoadFromFile("OBJs/leaf.obj");
 
