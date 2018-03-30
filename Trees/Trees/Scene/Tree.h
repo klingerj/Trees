@@ -55,7 +55,7 @@ public:
 
 // For Addition of new shoots
 #define OPTIMAL_GROWTH_DIR_WEIGHT 0.1f
-#define TROPISM_DIR_WEIGHT 0.0f
+#define TROPISM_DIR_WEIGHT 0.2f
 #define TROPISM_VECTOR glm::vec3(0.0f, -1.0f, 0.0f)
 
 // For branch radius computation

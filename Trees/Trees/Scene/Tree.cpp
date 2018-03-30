@@ -7,35 +7,35 @@ void TreeBranch::AddAxillaryBuds(const Bud& sourceBud, const int numBuds, const 
     // Create a temporary list of Buds that will be inserted in this branch's list of buds
     std::vector<Bud> newBuds = std::vector<Bud>();
 
+    // Direction in which growth occurs
+    const glm::vec3 newShootGrowthDir = glm::normalize(sourceBud.naturalGrowthDir + OPTIMAL_GROWTH_DIR_WEIGHT * sourceBud.optimalGrowthDir + TROPISM_DIR_WEIGHT * TROPISM_VECTOR);
+
     // Axillary bud orientation: Golden angle of 137.5 about the growth axis
-    glm::vec3 crossVec = (std::abs(glm::dot(growthDirection, WORLD_UP_VECTOR)) > 0.99f) ? glm::vec3(1.0f, 0.0f, 0.0f) : WORLD_UP_VECTOR; // avoid glm::cross returning a nan or 0-vector
-    const glm::quat branchQuat = glm::angleAxis(glm::radians(22.5f), glm::normalize(glm::cross(growthDirection, crossVec)));
+    glm::vec3 crossVec = (std::abs(glm::dot(newShootGrowthDir, WORLD_UP_VECTOR)) > 0.99f) ? glm::vec3(1.0f, 0.0f, 0.0f) : WORLD_UP_VECTOR; // avoid glm::cross returning a nan or 0-vector
+    const glm::quat branchQuat = glm::angleAxis(glm::radians(22.5f), glm::normalize(glm::cross(newShootGrowthDir, crossVec)));
     const glm::mat4 budRotMat = glm::toMat4(branchQuat);
 
     // Direction in which the bud itself is oriented
-    glm::vec3 budGrowthDir = glm::normalize(glm::vec3(budRotMat * glm::vec4(growthDirection, 0.0f)));
-
-    // Direction in which growth occurs
-    const glm::vec3 newShootGrowthDir = glm::normalize(sourceBud.naturalGrowthDir + OPTIMAL_GROWTH_DIR_WEIGHT * sourceBud.optimalGrowthDir + TROPISM_DIR_WEIGHT * TROPISM_VECTOR);
+    glm::vec3 budGrowthDir = glm::normalize(glm::vec3(budRotMat * glm::vec4(newShootGrowthDir, 0.0f)));
 
     // Buds will be inserted @ current terminal bud pos + (float)b * branchGrowthDir * internodeLength
     Bud& terminalBud = buds[buds.size() - 1]; // last bud is always the terminal bud
     for (int b = 0; b < numBuds; ++b) {
         // Account for golden angle here
         const float rotAmt = 137.5f * (float)((buds.size() + b) * (axisOrder + 1));
-        const glm::quat branchQuatGoldenAngle = glm::angleAxis(glm::radians(rotAmt), growthDirection);
+        const glm::quat branchQuatGoldenAngle = glm::angleAxis(glm::radians(rotAmt), newShootGrowthDir);
         const glm::mat4 budRotMatGoldenAngle = glm::toMat4(branchQuatGoldenAngle);
         const glm::vec3 budGrowthGoldenAngle = glm::normalize(glm::vec3(budRotMatGoldenAngle * glm::vec4(budGrowthDir, 0.0f)));
         
         // Special measure taken:
-        // If this is the first bud among the buds to be added, give it the internode length of the the terminal bud./
+        // If this is the first bud among the buds to be added, give it the internode length of the the terminal bud.
         // But, if this is the first time the terminal bud is growing, make the internode length 0 instead. The bud shouldn't grow at all.
         const float internodeLengthChecked = (buds.size() == 1) ? ((b == 0) ? 0.0f : internodeLength) : ((b == 0) ? terminalBud.internodeLength : internodeLength);
         newBuds.emplace_back(terminalBud.point + (float)b * newShootGrowthDir * internodeLength, budGrowthGoldenAngle, glm::vec3(0.0f),
                              0.0f, 0.0f, 0.0f, -1, internodeLengthChecked, 0.0f, 0, AXILLARY, DORMANT);
     }
     // Update terminal bud position
-    terminalBud.point = terminalBud.point + (float)(numBuds) * growthDirection * internodeLength;
+    terminalBud.point = terminalBud.point + (float)(numBuds) * newShootGrowthDir * internodeLength;
     terminalBud.internodeLength = internodeLength;
     buds.insert(buds.begin() + buds.size() - 1, newBuds.begin(), newBuds.end());
 }
@@ -97,7 +97,7 @@ void Tree::PerformSpaceColonization(std::vector<AttractorPoint>& attractorPoints
             while (attrPtIter != attractorPoints.end()) {
                 const Bud& currentBud = buds[bu];
                 const float budToPtDist = glm::length2(attrPtIter->GetPoint() - currentBud.point);
-                if (budToPtDist < 4.0f * currentBud.internodeLength * currentBud.internodeLength) { // 2x internode length - use distance squared
+                if (budToPtDist < 5.1f * currentBud.internodeLength * currentBud.internodeLength) { // 2x internode length - use distance squared
                     attrPtIter = attractorPoints.erase(attrPtIter); // This attractor point is close to the bud, remove it
                 }
                 else {
@@ -120,7 +120,7 @@ void Tree::PerformSpaceColonization(std::vector<AttractorPoint>& attractorPoints
                     const float budToPtDist2 = glm::length2(budToPtDir);
                     budToPtDir = glm::normalize(budToPtDir);
                     const float dotProd = glm::dot(budToPtDir, currentBud.naturalGrowthDir);
-                    if (budToPtDist2 < (16.0f * currentBud.internodeLength * currentBud.internodeLength) && dotProd > std::abs(COS_THETA_SMALL)) { // 4x internode length - use distance squared
+                    if (budToPtDist2 < (12.0f * currentBud.internodeLength * currentBud.internodeLength) && dotProd > std::abs(COS_THETA_SMALL)) { // 4x internode length - use distance squared
                                                                                                                                                    // Any given attractor point can only be perceived by one bud - the nearest one.
                                                                                                                                                    // If we end up find a bud closer to this attractor point than the previously recorded one,
                                                                                                                                                    // update the point accordingly and remove this attractor point's contribution from that bud's
