@@ -116,7 +116,7 @@ public:
         buds.emplace_back(p, glm::vec3(growthDirection), glm::vec3(0.0f), 0.0f, 0.0f, 0.0f, -1, INITIAL_BUD_INTERNODE_RADIUS, 0.0f, 0, TERMINAL, DORMANT); // add the terminal bud for this branch. Applies a prelim internode length (tweak, TODO)
     }
     inline const std::vector<Bud>& GetBuds() const { return buds; }
-    inline const int GetAxisOrder() const { return axisOrder; }
+    inline int GetAxisOrder() const { return axisOrder; }
     // Adds a certain number of axillary buds to the list of buds, starting at the index just before the terminal bud
     void AddAxillaryBuds(const Bud& sourceBud, const int numBuds, const float internodeLength);
 };

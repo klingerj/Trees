@@ -9,6 +9,7 @@
 #include "Scene\Camera.h"
 #include "Scene\Tree.h"
 #include "Scene\Globals.h"
+#include "CUDA\kernels.cuh"
 
 #include <iostream>
 #include <vector>
@@ -328,8 +329,8 @@ int main() {
             internodeIndices.insert(internodeIndices.end(), cubeIndicesNew.begin(), cubeIndicesNew.end());
 
             // Leaves
-            if (currentBud.type == AXILLARY && currentBud.fate != FORMED_BRANCH/* && branches[br].GetAxisOrder() > 1*/) { // TODO: skip buds that are formed_branch
-                const float leafScale = 0.005f / currentBud.branchRadius; // Joe's made-up heuristic
+            if (currentBud.type == AXILLARY && currentBud.fate != FORMED_BRANCH/* && branches[br].GetAxisOrder() > 1*/) {
+                const float leafScale = 0.05f * currentBud.internodeLength / currentBud.branchRadius; // Joe's made-up heuristic
                 if (leafScale < 0.01) { break; }
                 std::vector<glm::vec3> leafPointsTrans = std::vector<glm::vec3>();
                 std::vector<glm::vec3> leafNormalsTrans = std::vector<glm::vec3>();
