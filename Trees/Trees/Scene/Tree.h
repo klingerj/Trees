@@ -5,15 +5,23 @@
 #include "glm/gtx/norm.hpp"
 
 #include "Globals.h"
+#include "..\CUDA\kernels.h"
 
 #include <vector>
 #include <chrono>
 #include <ctime>
 
 
-// This class is only here temporarily
+struct AttractorPoint {
+    glm::vec3 point; // Point in world space
+    float nearestBudDist2; // how close the nearest bud is that has this point in its perception volume, squared
+    int nearestBudBranchIdx; // index in the array of the branch of that bud ^^
+    int nearestBudIdx; // index in the array of the bud of that branch ^^
 
-class AttractorPoint {
+    AttractorPoint(const glm::vec3& p) : point(p), nearestBudDist2(9999999.0f), nearestBudBranchIdx(-1), nearestBudIdx(-1) {}
+};
+
+/*class AttractorPoint {
 private:
     glm::vec3 point; // Point in world space
     float killDist; // Radius for removal
@@ -31,9 +39,8 @@ public:
     // Newer paper variables
     float nearestBudDist2; // how close the nearest bud is that has this point in its perception volume, squared
     int nearestBudBranchIdx; // index in the array of the branch of that bud ^^
-    int nearestBudIdx; // index in the array the bud of that branch ^^
-                       // For the indices: -1 indicates, not yet set, -2 indicates the terminal bud of the branch
-};
+    int nearestBudIdx; // index in the array of the bud of that branch ^^
+};*/
 
 
 
@@ -96,6 +103,9 @@ struct Bud {
         const int i, const float l, const float br, const int n, BUD_TYPE t, BUD_FATE f) :
         point(p), naturalGrowthDir(nd), optimalGrowthDir(d), environmentQuality(q), accumEnvironmentQuality(aq), resourceBH(re),
         formedBranchIndex(i), internodeLength(l), branchRadius(br), numNearbyAttrPts(n), type(t), fate(f) {}
+    Bud() : point(glm::vec3(0.0f)), naturalGrowthDir(glm::vec3(0.0f)), optimalGrowthDir(glm::vec3(0.0f)), environmentQuality(0.0f), accumEnvironmentQuality(0.0f), resourceBH(0.0f),
+        formedBranchIndex(-1), internodeLength(0.0f), branchRadius(0.0f), numNearbyAttrPts(0), type(TERMINAL), fate(ABORT) {}
+
 };
 
 // Wraps up necessary information regarding a tree branch.
@@ -144,4 +154,7 @@ public:
     float ComputeBranchRadiiRecursive(TreeBranch & branch);
     void ComputeBranchRadii();
     void ResetState();
+
+    // Compute shader testing
+    void CallComputeShader(std::vector<AttractorPoint>& attractorPoints);
 };

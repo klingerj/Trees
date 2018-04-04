@@ -55,6 +55,16 @@ void Tree::IterateGrowth(const int numIters, std::vector<AttractorPoint>& attrac
         std::time_t end_time = std::chrono::system_clock::to_time_t(end);
         std::cout << "Elapsed time for Space Colonization: " << elapsed_seconds.count() << "s\n";
 
+        // TODO: Remove
+        // testing for compute shader here
+        // for now, just want to send the arrays to the gpu, call a basic kernel and copy the data back
+        start = std::chrono::system_clock::now();
+        CallComputeShader(attractorPoints);
+        end = std::chrono::system_clock::now();
+        elapsed_seconds = end - start;
+        end_time = std::chrono::system_clock::to_time_t(end);
+        std::cout << "Elapsed time for Space Colonization on GPU: " << elapsed_seconds.count() << "s\n";
+
         start = std::chrono::system_clock::now();
         ComputeBHModelBasipetalPass();             // 2. Using BH Model, flow resource basipetally and then acropetally
         ComputeBHModelAcropetalPass();
@@ -96,7 +106,7 @@ void Tree::PerformSpaceColonization(std::vector<AttractorPoint>& attractorPoints
             auto attrPtIter = attractorPoints.begin();
             while (attrPtIter != attractorPoints.end()) {
                 const Bud& currentBud = buds[bu];
-                const float budToPtDist = glm::length2(attrPtIter->GetPoint() - currentBud.point);
+                const float budToPtDist = glm::length2(attrPtIter->point - currentBud.point);
                 if (budToPtDist < 5.1f * currentBud.internodeLength * currentBud.internodeLength) { // 2x internode length - use distance squared
                     attrPtIter = attractorPoints.erase(attrPtIter); // This attractor point is close to the bud, remove it
                 }
@@ -116,7 +126,7 @@ void Tree::PerformSpaceColonization(std::vector<AttractorPoint>& attractorPoints
             if (currentBud.internodeLength > 0.0f && currentBud.fate == DORMANT) {
                 auto attrPtIter = attractorPoints.begin();
                 while (attrPtIter != attractorPoints.end()) {
-                    glm::vec3 budToPtDir = attrPtIter->GetPoint() - currentBud.point; // Use current axillary or terminal bud
+                    glm::vec3 budToPtDir = attrPtIter->point - currentBud.point; // Use current axillary or terminal bud
                     const float budToPtDist2 = glm::length2(budToPtDir);
                     budToPtDir = glm::normalize(budToPtDir);
                     const float dotProd = glm::dot(budToPtDir, currentBud.naturalGrowthDir);
@@ -309,5 +319,33 @@ void Tree::ResetState() {
             currentBud.optimalGrowthDir = glm::vec3(0.0f);
             currentBud.resourceBH = 0.0f;
         }
+    }
+}
+
+// TODO: there has to be a better way to do this?
+void Tree::CallComputeShader(std::vector<AttractorPoint>& attractorPoints) {
+    // Assemble array of buds
+    std::vector<Bud> buds = std::vector<Bud>();
+    for (unsigned int br = 0; br < (unsigned int)branches.size(); ++br) {
+        const std::vector<Bud> branchBuds = branches[br].GetBuds();
+        for (unsigned int bu = 0; bu < branchBuds.size(); ++bu) {
+            buds.emplace_back(branchBuds[bu]);
+        }
+    }
+
+    Bud* budArray = new Bud[buds.size()];
+    for (int i = 0; i < buds.size(); ++i) {
+        budArray[i] = buds[i];
+    }
+    TreeApp::PerformSpaceColonizationParallel(budArray, buds.size(), attractorPoints.data(), attractorPoints.size());
+
+    // Copy bud info back to the tree
+    int budCounter = 0;
+    for (unsigned int br = 0; br < (unsigned int)branches.size(); ++br) {
+        std::vector<Bud>& branchBuds = branches[br].buds;
+        for (unsigned int bu = 0; bu < branchBuds.size(); ++bu) {
+            branchBuds[bu] = budArray[bu + budCounter];
+        }
+        budCounter += branchBuds.size();
     }
 }

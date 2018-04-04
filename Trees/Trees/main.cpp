@@ -9,7 +9,6 @@
 #include "Scene\Camera.h"
 #include "Scene\Tree.h"
 #include "Scene\Globals.h"
-#include "CUDA\kernels.cuh"
 
 #include <iostream>
 #include <vector>
@@ -126,7 +125,7 @@ int main() {
     std::vector<AttractorPoint> attractorPoints = std::vector<AttractorPoint>();
     attractorPoints.reserve(numPointsIncluded);
     for (unsigned int i = 0; i < numPointsIncluded; ++i) {
-        attractorPoints.emplace_back(AttractorPoint(points[i], killDist));
+        attractorPoints.emplace_back(AttractorPoint(points[i]));
     }
     auto end = std::chrono::system_clock::now();
     std::chrono::duration<double> elapsed_seconds = end - start;
@@ -415,7 +414,7 @@ int main() {
     std::vector<glm::vec3> tempPts = std::vector<glm::vec3>();
     tempPts.reserve(attractorPoints.size());
     for (int i = 0; i < attractorPoints.size(); ++i) {
-        tempPts.emplace_back(attractorPoints[i].GetPoint());
+        tempPts.emplace_back(attractorPoints[i].point);
     }
     std::vector<unsigned int> tempPtsIdx = std::vector<unsigned int>();
     tempPtsIdx.reserve(attractorPoints.size());

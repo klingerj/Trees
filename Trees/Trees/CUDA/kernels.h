@@ -1,4 +1,5 @@
 #pragma warning(disable : 4996) //_CRT_SECURE_NO_WARNINGS
+#pragma once
 
 #include <thrust/sort.h>
 #include <thrust/execution_policy.h>
@@ -6,8 +7,9 @@
 #include <thrust/device_vector.h>
 #include <cuda.h>
 
-#include "../Scene/Tree.h"
+struct Bud;
+struct AttractorPoint;
 
 namespace TreeApp {
-    void PerformSpaceColonization(Bud* buds, glm::vec3* attractorPoints);
+    void PerformSpaceColonizationParallel(Bud* buds, const int numBuds, AttractorPoint* attractorPoints, const int numAttractorPoints);
 }
