@@ -143,8 +143,7 @@ void Tree::PerformSpaceColonization(std::vector<AttractorPoint>& attractorPoints
                                 oldNearestBudDir -= budToPtDir;
                                 if (--oldNearestBud.numNearbyAttrPts > 0) {
                                     oldNearestBudDir = glm::normalize(oldNearestBudDir);
-                                }
-                                else {
+                                } else {
                                     oldNearestBudDir = glm::vec3(0.0f);
                                 }
                             }
@@ -215,7 +214,7 @@ void Tree::ComputeResourceFlowRecursive(TreeBranch& branch, float resource) {
                 currentBud.resourceBH = resource;
                 break;
                 // Have to scope w/ brackets for nontrivial cases, apparently: https://stackoverflow.com/questions/10381144/error-c2361-initialization-of-found-is-skipped-by-default-label
-            case FORMED_BRANCH: {
+            case FORMED_BRANCH: { // It is assumed that these buds always occur at the 0th index in the vector
                 TreeBranch& axillaryBranch = branches[currentBud.formedBranchIndex];
                 const float Qm = branch.buds[bu + 1].accumEnvironmentQuality; // Q on main axis
                 const float Ql = axillaryBranch.buds[1].accumEnvironmentQuality; // Q on axillary axis
