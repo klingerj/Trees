@@ -21,27 +21,6 @@ struct AttractorPoint {
     AttractorPoint(const glm::vec3& p) : point(p), nearestBudDist2(9999999.0f), nearestBudBranchIdx(-1), nearestBudIdx(-1) {}
 };
 
-/*class AttractorPoint {
-private:
-    glm::vec3 point; // Point in world space
-    float killDist; // Radius for removal
-
-public:
-    AttractorPoint(const glm::vec3& p, const float& d) : point(p), killDist(d), nearestBudDist2(9999999.0f), nearestBudBranchIdx(-1), nearestBudIdx(-1) {}
-    ~AttractorPoint() {}
-    inline const glm::vec3 GetPoint() const {
-        return point;
-    }
-    inline bool IsKilledBy(const glm::vec3& p) const {
-        return glm::distance2(p, point) < (killDist * killDist);
-    }
-    // Make these private
-    // Newer paper variables
-    float nearestBudDist2; // how close the nearest bud is that has this point in its perception volume, squared
-    int nearestBudBranchIdx; // index in the array of the branch of that bud ^^
-    int nearestBudIdx; // index in the array of the bud of that branch ^^
-};*/
-
 
 
 
@@ -58,11 +37,11 @@ public:
 
 // For BH Model
 #define ALPHA 1.0f // proportionality constant for resource flow computation
-#define LAMBDA 0.5f
+#define LAMBDA 0.51f
 
 // For Addition of new shoots
-#define OPTIMAL_GROWTH_DIR_WEIGHT 0.1f
-#define TROPISM_DIR_WEIGHT 0.2f
+#define OPTIMAL_GROWTH_DIR_WEIGHT 0.0f
+#define TROPISM_DIR_WEIGHT 0.0f
 #define TROPISM_VECTOR glm::vec3(0.0f, -1.0f, 0.0f)
 
 // For branch radius computation
@@ -153,7 +132,7 @@ public:
     void AppendNewShoots();
     float ComputeBranchRadiiRecursive(TreeBranch & branch);
     void ComputeBranchRadii();
-    void ResetState();
+    void ResetState(std::vector<AttractorPoint>& attractorPoints);
 
     // Compute shader testing
     void CallComputeShader(std::vector<AttractorPoint>& attractorPoints);

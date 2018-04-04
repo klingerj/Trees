@@ -6,12 +6,15 @@
 
 #include <stdio.h>
 
-__global__ void kernSpaceCol(Bud* dev_buds, const int numBuds, AttractorPoint* dev_attrPts, const int numAttractorPoints) {
+// Note: this implementation uses the "nearestBudIdx" field differently than the CPU implementation. This is because on the GPU, we don't
+// have access to the "branches" vector, so we jus tmake the bud idx the index in the one big array of buds, not the index in the vector
+// of buds for a certain branch.
+__global__ void kernSpaceCol(Bud* dev_buds, const int numBuds, AttractorPoint* dev_attrPts, const int numAttractorPoints, int* dev_mutex) {
     int index = threadIdx.x + (blockIdx.x * blockDim.x);
     if (index >= numBuds) {
         return;
     }
-
+    
     Bud& currentBud = dev_buds[index];
 
     // Space Colonization
@@ -22,24 +25,32 @@ __global__ void kernSpaceCol(Bud* dev_buds, const int numBuds, AttractorPoint* d
             const float budToPtDist2 = glm::length2(budToPtDir);
             budToPtDir = glm::normalize(budToPtDir);
             const float dotProd = glm::dot(budToPtDir, currentBud.naturalGrowthDir);
-            if (budToPtDist2 < (12.0f * currentBud.internodeLength * currentBud.internodeLength) && dotProd > std::abs(COS_THETA_SMALL)) {
-                if (budToPtDist2 < currentAttrPt.nearestBudDist2) {
-                    currentAttrPt.nearestBudDist2 = budToPtDist2;
-                    if (currentAttrPt.nearestBudBranchIdx != -1 && currentAttrPt.nearestBudIdx != -1) {
-                        Bud& oldNearestBud = branches[attrPtIter->nearestBudBranchIdx].buds[attrPtIter->nearestBudIdx];
-                        glm::vec3& oldNearestBudDir = oldNearestBud.optimalGrowthDir * (float)oldNearestBud.numNearbyAttrPts;
-                        oldNearestBudDir -= budToPtDir;
-                        if (--oldNearestBud.numNearbyAttrPts > 0) {
-                            oldNearestBudDir = glm::normalize(oldNearestBudDir);
-                        } else {
-                            oldNearestBudDir = glm::vec3(0.0f);
+            if (budToPtDist2 < (14.0f * currentBud.internodeLength * currentBud.internodeLength) && dotProd > std::abs(COS_THETA_SMALL)) {
+                //int* mutex = dev_mutex + ap;
+                //bool isSet = false;
+                //do {
+                 //   isSet = (atomicCAS(mutex, 0, 1) == 0);
+                 //   if (isSet) {
+                        if (budToPtDist2 < currentAttrPt.nearestBudDist2) {
+                            currentAttrPt.nearestBudDist2 = budToPtDist2;
+                            if (currentAttrPt.nearestBudIdx != -1) {
+                                Bud& oldNearestBud = dev_buds[currentAttrPt.nearestBudIdx];
+                                glm::vec3& oldNearestBudDir = oldNearestBud.optimalGrowthDir;
+                                oldNearestBudDir -= budToPtDir;
+                                if (--oldNearestBud.numNearbyAttrPts > 0) {
+                                    //oldNearestBudDir = glm::normalize(oldNearestBudDir);
+                                } else {
+                                    oldNearestBudDir = glm::vec3(0.0f);
+                                    oldNearestBud.accumEnvironmentQuality = 0.0f;
+                                }
+                            }
+                            currentAttrPt.nearestBudIdx = index;
+                            currentBud.optimalGrowthDir += budToPtDir;
+                            ++currentBud.numNearbyAttrPts;
                         }
-                    }
-                    currentAttrPt.nearestBudBranchIdx = ;
-                    currentAttrPt.nearestBudIdx = ;
-                    currentBud.optimalGrowthDir += budToPtDir;
-                    ++currentBud.numNearbyAttrPts;
-                }
+                        //*mutex = 0;
+                    //}
+                //} while (!isSet);
             }
         }
     }
@@ -47,6 +58,9 @@ __global__ void kernSpaceCol(Bud* dev_buds, const int numBuds, AttractorPoint* d
     if (currentBud.numNearbyAttrPts > 0) {
         currentBud.optimalGrowthDir = glm::normalize(currentBud.optimalGrowthDir);
         currentBud.environmentQuality = 1.0f;
+    } else {
+        currentBud.optimalGrowthDir = glm::vec3(0.0f);
+        currentBud.environmentQuality = 0.0f;
     }
 }
 
@@ -55,6 +69,7 @@ cudaError_t RunSpaceColonizationKernel(Bud* buds, const int numBuds, AttractorPo
 
     Bud* dev_buds = 0;
     AttractorPoint* dev_attrPts = 0;
+    int* dev_mutex = 0;
 
     // Device
     cudaStatus = cudaSetDevice(0);
@@ -76,6 +91,12 @@ cudaError_t RunSpaceColonizationKernel(Bud* buds, const int numBuds, AttractorPo
         goto Error;
     }
 
+    cudaStatus = cudaMalloc((void**)&dev_mutex, numAttractorPoints * sizeof(int));
+    if (cudaStatus != cudaSuccess) {
+        fprintf(stderr, "cudaMalloc failed!");
+        goto Error;
+    }
+
     // Cuda memcpy
     cudaStatus = cudaMemcpy(dev_buds, buds, numBuds * sizeof(Bud), cudaMemcpyHostToDevice);
     if (cudaStatus != cudaSuccess) {
@@ -89,9 +110,11 @@ cudaError_t RunSpaceColonizationKernel(Bud* buds, const int numBuds, AttractorPo
         goto Error;
     }
 
+    cudaMemset(dev_mutex, 0, numAttractorPoints * sizeof(int));
+
     // Run the kernel
     const int blockSize = 32;
-    kernSpaceCol << < (numBuds + blockSize - 1) / blockSize, blockSize >> > (dev_buds, numBuds, dev_attrPts, numAttractorPoints);
+    kernSpaceCol << < (numBuds + blockSize - 1) / blockSize, blockSize >> > (dev_buds, numBuds, dev_attrPts, numAttractorPoints, dev_mutex);
 
     // Cuda Memcpy the Bud info back to the CPU
     cudaStatus = cudaMemcpy(buds, dev_buds, numBuds * sizeof(Bud), cudaMemcpyDeviceToHost);
@@ -103,6 +126,7 @@ cudaError_t RunSpaceColonizationKernel(Bud* buds, const int numBuds, AttractorPo
 Error:
     cudaFree(dev_buds);
     cudaFree(dev_attrPts);
+    cudaFree(dev_mutex);
 
     return cudaStatus;
 }

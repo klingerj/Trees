@@ -121,7 +121,6 @@ int main() {
     }
 
     // Create the actual AttractorPoints
-    const float killDist = 0.05f;
     std::vector<AttractorPoint> attractorPoints = std::vector<AttractorPoint>();
     attractorPoints.reserve(numPointsIncluded);
     for (unsigned int i = 0; i < numPointsIncluded; ++i) {
