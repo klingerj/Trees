@@ -173,7 +173,7 @@
     <None Include="Shaders\treeNode-vert.vert" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="CUDA\kernels.cuh" />
+    <ClInclude Include="CUDA\kernels.h" />
     <ClInclude Include="OpenGL\ShaderProgram.h" />
     <ClInclude Include="Raytracing\Raytracing.h" />
     <ClInclude Include="Scene\Camera.h" />

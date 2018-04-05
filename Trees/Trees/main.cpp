@@ -54,7 +54,7 @@ void processInput(GLFWwindow *window) {
 int main() {
     // Test Mesh Loading
     Mesh m = Mesh();
-    m.LoadFromFile("OBJs/sphereLowPoly.obj");
+    m.LoadFromFile("OBJs/helixRot.obj");
     Mesh m2 = Mesh();
     m2.LoadFromFile("OBJs/leaf.obj");
 
@@ -111,7 +111,7 @@ int main() {
             points.emplace_back(p + glm::vec3(0.0f, 10.0f, 0.0f));
         }*/ // cylinder sdf
 
-        const glm::vec3 p = glm::vec3(dis(rng) * 2.0f /** -0.6f*/, dis(rng) * 2.0f /*0.5f*/  /** 0.012f*/, dis(rng) * 4.0f /** 0.113f*/);
+        const glm::vec3 p = glm::vec3(dis(rng) * 2.0f, dis(rng) * 2.0f, dis(rng) * 4.0f);
         
         // Intersect with mesh instead
         if (m.Contains(p)) {
@@ -121,11 +121,10 @@ int main() {
     }
 
     // Create the actual AttractorPoints
-    const float killDist = 0.05f;
     std::vector<AttractorPoint> attractorPoints = std::vector<AttractorPoint>();
     attractorPoints.reserve(numPointsIncluded);
     for (unsigned int i = 0; i < numPointsIncluded; ++i) {
-        attractorPoints.emplace_back(AttractorPoint(points[i], killDist));
+        attractorPoints.emplace_back(AttractorPoint(points[i]));
     }
     auto end = std::chrono::system_clock::now();
     std::chrono::duration<double> elapsed_seconds = end - start;
@@ -137,7 +136,7 @@ int main() {
     Tree tree = Tree(glm::vec3(0.0f, 0.0f, 0.0f));
 
     start = std::chrono::system_clock::now();
-    tree.IterateGrowth(NUM_ITERATIONS, attractorPoints);
+    tree.IterateGrowth(NUM_ITERATIONS, attractorPoints, true);
     end = std::chrono::system_clock::now();
     elapsed_seconds = end - start;
     end_time = std::chrono::system_clock::to_time_t(end);
@@ -328,8 +327,8 @@ int main() {
             internodeIndices.insert(internodeIndices.end(), cubeIndicesNew.begin(), cubeIndicesNew.end());
 
             // Leaves
-            if (currentBud.type == AXILLARY && currentBud.fate != FORMED_BRANCH/* && branches[br].GetAxisOrder() > 1*/) { // TODO: skip buds that are formed_branch
-                const float leafScale = 0.005f / currentBud.branchRadius; // Joe's made-up heuristic
+            if (currentBud.type == AXILLARY && currentBud.fate != FORMED_BRANCH/* && branches[br].GetAxisOrder() > 1*/) {
+                const float leafScale = 0.05f * currentBud.internodeLength / currentBud.branchRadius; // Joe's made-up heuristic
                 if (leafScale < 0.01) { break; }
                 std::vector<glm::vec3> leafPointsTrans = std::vector<glm::vec3>();
                 std::vector<glm::vec3> leafNormalsTrans = std::vector<glm::vec3>();
@@ -414,7 +413,7 @@ int main() {
     std::vector<glm::vec3> tempPts = std::vector<glm::vec3>();
     tempPts.reserve(attractorPoints.size());
     for (int i = 0; i < attractorPoints.size(); ++i) {
-        tempPts.emplace_back(attractorPoints[i].GetPoint());
+        tempPts.emplace_back(attractorPoints[i].point);
     }
     std::vector<unsigned int> tempPtsIdx = std::vector<unsigned int>();
     tempPtsIdx.reserve(attractorPoints.size());
@@ -539,9 +538,9 @@ int main() {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // Attractor Points
-        /*glBindVertexArray(VAO);
+        glBindVertexArray(VAO);
         sp.setCameraViewProj("cameraViewProj", camera.GetViewProj());
-        glDrawElements(GL_POINTS, (GLsizei) tempPtsIdx.size(), GL_UNSIGNED_INT, 0);*/
+        glDrawElements(GL_POINTS, (GLsizei) tempPtsIdx.size(), GL_UNSIGNED_INT, 0);
 
         // old cubes / new bud points
         glBindVertexArray(VAO2);

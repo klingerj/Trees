@@ -22,7 +22,7 @@ void TreeBranch::AddAxillaryBuds(const Bud& sourceBud, const int numBuds, const 
     Bud& terminalBud = buds[buds.size() - 1]; // last bud is always the terminal bud
     for (int b = 0; b < numBuds; ++b) {
         // Account for golden angle here
-        const float rotAmt = 137.5f * (float)((buds.size() + b) * (axisOrder + 1));
+        const float rotAmt = 137.5f * (float)((buds.size() + b) /** (axisOrder + 1)*/);
         const glm::quat branchQuatGoldenAngle = glm::angleAxis(glm::radians(rotAmt), newShootGrowthDir);
         const glm::mat4 budRotMatGoldenAngle = glm::toMat4(branchQuatGoldenAngle);
         const glm::vec3 budGrowthGoldenAngle = glm::normalize(glm::vec3(budRotMatGoldenAngle * glm::vec4(budGrowthDir, 0.0f)));
@@ -43,13 +43,12 @@ void TreeBranch::AddAxillaryBuds(const Bud& sourceBud, const int numBuds, const 
 
 /// Tree Class Functions
 
-void Tree::IterateGrowth(const int numIters, std::vector<AttractorPoint>& attractorPoints) {
+void Tree::IterateGrowth(const int numIters, std::vector<AttractorPoint>& attractorPoints, bool useGPU) {
     for (int n = 0; n < numIters; ++n) {
-
         std::cout << "Iteration #: " << n << std::endl;
 
         auto start = std::chrono::system_clock::now();
-        PerformSpaceColonization(attractorPoints); // 1. Compute Q (presence of space/light) and optimal growth direction using space colonization
+        PerformSpaceColonization(attractorPoints, useGPU); // 1. Compute Q (presence of space/light) and optimal growth direction using space colonization
         auto end = std::chrono::system_clock::now();
         std::chrono::duration<double> elapsed_seconds = end - start;
         std::time_t end_time = std::chrono::system_clock::to_time_t(end);
@@ -71,7 +70,7 @@ void Tree::IterateGrowth(const int numIters, std::vector<AttractorPoint>& attrac
         std::cout << "Elapsed time for Appending New Shoots: " << elapsed_seconds.count() << "s\n";
 
         start = std::chrono::system_clock::now();
-        ResetState();                              // 4. Prepare all data to be iterated over again, e.g. set accumQ / resrouceBH for all buds back to 0
+        ResetState(attractorPoints);                              // 4. Prepare all data to be iterated over again, e.g. set accumQ / resrouceBH for all buds back to 0
         end = std::chrono::system_clock::now();
         elapsed_seconds = end - start;
         end_time = std::chrono::system_clock::to_time_t(end);
@@ -87,78 +86,108 @@ void Tree::IterateGrowth(const int numIters, std::vector<AttractorPoint>& attrac
     std::time_t end_time = std::chrono::system_clock::to_time_t(end);
     std::cout << "Elapsed time for Computing Branch Radii: " << elapsed_seconds.count() << "s\n";
 }
-void Tree::PerformSpaceColonization(std::vector<AttractorPoint>& attractorPoints) {
-    // 1. Remove all attractor points that are too close to any bud
-    for (int br = 0; br < branches.size(); ++br) {
-        const std::vector<Bud>& buds = branches[br].buds;
-        for (int bu = 0; bu < buds.size(); ++bu) {
 
-            auto attrPtIter = attractorPoints.begin();
-            while (attrPtIter != attractorPoints.end()) {
-                const Bud& currentBud = buds[bu];
-                const float budToPtDist = glm::length2(attrPtIter->GetPoint() - currentBud.point);
-                if (budToPtDist < 5.1f * currentBud.internodeLength * currentBud.internodeLength) { // 2x internode length - use distance squared
-                    attrPtIter = attractorPoints.erase(attrPtIter); // This attractor point is close to the bud, remove it
-                }
-                else {
-                    ++attrPtIter;
-                }
-            }
-        }
+void Tree::PerformSpaceColonization(std::vector<AttractorPoint>& attractorPoints, bool useGPU) {
+    RemoveAttractorPoints(attractorPoints);
+    
+    if (useGPU) {
+        PerformSpaceColonizationGPU(attractorPoints);
+    } else {
+        PerformSpaceColonizationCPU(attractorPoints);
     }
+}
 
-    // 2. Compute the optimal growth direction for each bud
-    for (int br = 0; br < branches.size(); ++br) {
+void Tree::PerformSpaceColonizationCPU(std::vector<AttractorPoint>& attractorPoints) {
+    // 2. Pass One - For each bud, set the nearest bud of each perceived attractor point
+    for (unsigned int br = 0; br < (unsigned int)branches.size(); ++br) {
         std::vector<Bud>& buds = branches[br].buds;
         const unsigned int numBuds = (unsigned int)buds.size();
         for (unsigned int bu = 0; bu < numBuds; ++bu) {
             Bud& currentBud = buds[bu];
             if (currentBud.internodeLength > 0.0f && currentBud.fate == DORMANT) {
-                auto attrPtIter = attractorPoints.begin();
-                while (attrPtIter != attractorPoints.end()) {
-                    glm::vec3 budToPtDir = attrPtIter->GetPoint() - currentBud.point; // Use current axillary or terminal bud
+                for (int ap = 0; ap < attractorPoints.size(); ++ap) {
+                    AttractorPoint& currentAttrPt = attractorPoints[ap];
+                    glm::vec3 budToPtDir = currentAttrPt.point - currentBud.point;
                     const float budToPtDist2 = glm::length2(budToPtDir);
                     budToPtDir = glm::normalize(budToPtDir);
                     const float dotProd = glm::dot(budToPtDir, currentBud.naturalGrowthDir);
-                    if (budToPtDist2 < (12.0f * currentBud.internodeLength * currentBud.internodeLength) && dotProd > std::abs(COS_THETA_SMALL)) { // 4x internode length - use distance squared
+                    if (budToPtDist2 < (14.0f * currentBud.internodeLength * currentBud.internodeLength) && dotProd > std::abs(COS_THETA_SMALL)) { // ~4x internode length - use distance squared
                                                                                                                                                    // Any given attractor point can only be perceived by one bud - the nearest one.
                                                                                                                                                    // If we end up find a bud closer to this attractor point than the previously recorded one,
                                                                                                                                                    // update the point accordingly and remove this attractor point's contribution from that bud's
                                                                                                                                                    // growth direction vector.
-                        if (budToPtDist2 < attrPtIter->nearestBudDist2) {
-                            attrPtIter->nearestBudDist2 = budToPtDist2;
-                            if (attrPtIter->nearestBudBranchIdx != -1 && attrPtIter->nearestBudIdx != -1) {
-                                Bud& oldNearestBud = branches[attrPtIter->nearestBudBranchIdx].buds[attrPtIter->nearestBudIdx];
-                                glm::vec3& oldNearestBudDir = oldNearestBud.optimalGrowthDir * (float)oldNearestBud.numNearbyAttrPts;
-                                oldNearestBudDir -= budToPtDir;
-                                if (--oldNearestBud.numNearbyAttrPts > 0) {
-                                    oldNearestBudDir = glm::normalize(oldNearestBudDir);
-                                }
-                                else {
-                                    oldNearestBudDir = glm::vec3(0.0f);
-                                }
-                            }
-                            attrPtIter->nearestBudBranchIdx = br;
-                            attrPtIter->nearestBudIdx = bu;
-                            currentBud.optimalGrowthDir += budToPtDir;
-                            ++currentBud.numNearbyAttrPts;
+                        if (budToPtDist2 < currentAttrPt.nearestBudDist2) {
+                            currentAttrPt.nearestBudDist2 = budToPtDist2;
+                            currentAttrPt.nearestBudBranchIdx = br;
+                            currentAttrPt.nearestBudIdx = bu;
                         }
                     }
-                    ++attrPtIter;
                 }
             }
-            
-            if (currentBud.numNearbyAttrPts > 0) {
-                currentBud.optimalGrowthDir = glm::normalize(currentBud.optimalGrowthDir);
-                currentBud.environmentQuality = 1.0f;
+        }
+    }
+
+    // 2. Pass Two - For each bud, if the current attr pt has the current bud as its nearest, add it's normalized dir to the total optimal dir. normalize it at the end.
+    for (unsigned int br = 0; br < (unsigned int)branches.size(); ++br) {
+        std::vector<Bud>& buds = branches[br].buds;
+        const unsigned int numBuds = (unsigned int)buds.size();
+        for (unsigned int bu = 0; bu < numBuds; ++bu) {
+            Bud& currentBud = buds[bu];
+            if (currentBud.internodeLength > 0.0f && currentBud.fate == DORMANT) {
+                for (int ap = 0; ap < attractorPoints.size(); ++ap) {
+                    AttractorPoint& currentAttrPt = attractorPoints[ap];
+                    glm::vec3 budToPtDir = currentAttrPt.point - currentBud.point;
+                    const float budToPtDist2 = glm::length2(budToPtDir);
+                    budToPtDir = glm::normalize(budToPtDir);
+                    const float dotProd = glm::dot(budToPtDir, currentBud.naturalGrowthDir);
+                    if (budToPtDist2 < (14.0f * currentBud.internodeLength * currentBud.internodeLength) && dotProd > std::abs(COS_THETA_SMALL)) { // ~4x internode length - use distance squared
+                                                                                                                                                   // Any given attractor point can only be perceived by one bud - the nearest one.
+                                                                                                                                                   // If we end up find a bud closer to this attractor point than the previously recorded one,
+                                                                                                                                                   // update the point accordingly and remove this attractor point's contribution from that bud's
+                                                                                                                                                   // growth direction vector.
+                        if (currentAttrPt.nearestBudBranchIdx == br && currentAttrPt.nearestBudIdx == bu) {
+                            ++currentBud.numNearbyAttrPts;
+                            currentBud.optimalGrowthDir += budToPtDir;
+                            currentBud.environmentQuality = 1.0f;
+                        }
+                    }
+                }
+                currentBud.optimalGrowthDir = currentBud.numNearbyAttrPts > 0 ? glm::normalize(currentBud.optimalGrowthDir) : glm::vec3(0.0f);
             }
         }
     }
 }
 
+void Tree::PerformSpaceColonizationGPU(std::vector<AttractorPoint>& attractorPoints) {
+    // Assemble array of buds
+    std::vector<Bud> buds = std::vector<Bud>();
+    for (unsigned int br = 0; br < (unsigned int)branches.size(); ++br) {
+    const std::vector<Bud> branchBuds = branches[br].GetBuds();
+    for (unsigned int bu = 0; bu < branchBuds.size(); ++bu) {
+    buds.emplace_back(branchBuds[bu]);
+    }
+    }
+
+    Bud* budArray = new Bud[buds.size()];
+    for (int i = 0; i < buds.size(); ++i) {
+    budArray[i] = buds[i];
+    }
+    TreeApp::PerformSpaceColonizationParallel(budArray, buds.size(), attractorPoints.data(), attractorPoints.size());
+
+    // Copy bud info back to the tree
+    int budCounter = 0;
+    for (unsigned int br = 0; br < (unsigned int)branches.size(); ++br) {
+    std::vector<Bud>& branchBuds = branches[br].buds;
+    for (unsigned int bu = 0; bu < branchBuds.size(); ++bu) {
+            branchBuds[bu] = budArray[bu + budCounter];
+        }
+        budCounter += branchBuds.size();
+    }
+}
+
 float Tree::ComputeQAccumRecursive(TreeBranch& branch) {
     float accumQ = 0.0f;
-    for (int bu = (int)branch.buds.size() - 1; bu >= 0; --bu) {
+    for (int bu = branch.buds.size() - 1; bu >= 0; --bu) {
         Bud& currentBud = branch.buds[bu];
         switch (currentBud.type) {
         case TERMINAL:
@@ -193,7 +222,7 @@ void Tree::ComputeBHModelBasipetalPass() {
 
 // make this a non-member helper function in the cpp file
 void Tree::ComputeResourceFlowRecursive(TreeBranch& branch, float resource) {
-    for (int bu = 0; bu < branch.buds.size(); ++bu) {
+    for (unsigned int bu = 0; bu < (unsigned int)branch.buds.size(); ++bu) {
         Bud& currentBud = branch.buds[bu];
         switch (currentBud.type) {
         case TERMINAL:
@@ -205,7 +234,7 @@ void Tree::ComputeResourceFlowRecursive(TreeBranch& branch, float resource) {
                 currentBud.resourceBH = resource;
                 break;
                 // Have to scope w/ brackets for nontrivial cases, apparently: https://stackoverflow.com/questions/10381144/error-c2361-initialization-of-found-is-skipped-by-default-label
-            case FORMED_BRANCH: {
+            case FORMED_BRANCH: { // It is assumed that these buds always occur at the 0th index in the vector
                 TreeBranch& axillaryBranch = branches[currentBud.formedBranchIndex];
                 const float Qm = branch.buds[bu + 1].accumEnvironmentQuality; // Q on main axis
                 const float Ql = axillaryBranch.buds[1].accumEnvironmentQuality; // Q on axillary axis
@@ -268,7 +297,7 @@ void Tree::AppendNewShoots() {
 // Using the "pipe model" described in the paper, compute the radius of each branch
 float Tree::ComputeBranchRadiiRecursive(TreeBranch& branch) {
     float branchRadius = MINIMUM_BRANCH_RADIUS;
-    for (int bu = (int)branch.buds.size() - 1; bu >= 0; --bu) {
+    for (int bu = branch.buds.size() - 1; bu >= 0; --bu) {
         Bud& currentBud = branch.buds[bu];
         switch (currentBud.type) {
         case TERMINAL:
@@ -295,11 +324,13 @@ float Tree::ComputeBranchRadiiRecursive(TreeBranch& branch) {
     }
     return branchRadius;
 }
+
 void Tree::ComputeBranchRadii() {
     ComputeBranchRadiiRecursive(branches[0]); // ignore return value
 }
-void Tree::ResetState() {
-    for (int br = 0; br < branches.size(); ++br) {
+
+void Tree::ResetState(std::vector<AttractorPoint>& attractorPoints) {
+    for (unsigned int br = 0; br < (unsigned int)branches.size(); ++br) {
         std::vector<Bud>& buds = branches[br].buds;
         for (int bu = 0; bu < buds.size(); ++bu) {
             Bud& currentBud = buds[bu];
@@ -308,6 +339,35 @@ void Tree::ResetState() {
             currentBud.numNearbyAttrPts = 0;
             currentBud.optimalGrowthDir = glm::vec3(0.0f);
             currentBud.resourceBH = 0.0f;
+        }
+    }
+
+    for (unsigned int ap = 0; ap < (unsigned int)attractorPoints.size(); ++ap) {
+        AttractorPoint& currentAttrPt = attractorPoints[ap];
+        currentAttrPt.nearestBudDist2 = 9999999.0f;
+        currentAttrPt.nearestBudBranchIdx = -1;
+        currentAttrPt.nearestBudIdx = -1;
+    }
+}
+
+// Remove all attractor points that are too close to buds
+void Tree::RemoveAttractorPoints(std::vector<AttractorPoint>& attractorPoints) {
+    // 1. Remove all attractor points that are too close to any bud
+    for (unsigned int br = 0; br < (unsigned int)branches.size(); ++br) {
+        const std::vector<Bud>& buds = branches[br].buds;
+        for (unsigned int bu = 0; bu < (unsigned int)buds.size(); ++bu) {
+
+            auto attrPtIter = attractorPoints.begin();
+            while (attrPtIter != attractorPoints.end()) {
+                const Bud& currentBud = buds[bu];
+                const float budToPtDist = glm::length2(attrPtIter->point - currentBud.point);
+                if (budToPtDist < 5.1f * currentBud.internodeLength * currentBud.internodeLength) { // ~2x internode length - use distance squared
+                    attrPtIter = attractorPoints.erase(attrPtIter); // This attractor point is close to the bud, remove it
+                }
+                else {
+                    ++attrPtIter;
+                }
+            }
         }
     }
 }

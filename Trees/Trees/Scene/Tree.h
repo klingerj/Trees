@@ -5,34 +5,20 @@
 #include "glm/gtx/norm.hpp"
 
 #include "Globals.h"
+#include "..\CUDA\kernels.h"
 
 #include <vector>
 #include <chrono>
 #include <ctime>
 
 
-// This class is only here temporarily
-
-class AttractorPoint {
-private:
+struct AttractorPoint {
     glm::vec3 point; // Point in world space
-    float killDist; // Radius for removal
-
-public:
-    AttractorPoint(const glm::vec3& p, const float& d) : point(p), killDist(d), nearestBudDist2(9999999.0f), nearestBudBranchIdx(-1), nearestBudIdx(-1) {}
-    ~AttractorPoint() {}
-    inline const glm::vec3 GetPoint() const {
-        return point;
-    }
-    inline bool IsKilledBy(const glm::vec3& p) const {
-        return glm::distance2(p, point) < (killDist * killDist);
-    }
-    // Make these private
-    // Newer paper variables
     float nearestBudDist2; // how close the nearest bud is that has this point in its perception volume, squared
     int nearestBudBranchIdx; // index in the array of the branch of that bud ^^
-    int nearestBudIdx; // index in the array the bud of that branch ^^
-                       // For the indices: -1 indicates, not yet set, -2 indicates the terminal bud of the branch
+    int nearestBudIdx; // index in the array of the bud of that branch ^^
+
+    AttractorPoint(const glm::vec3& p) : point(p), nearestBudDist2(9999999.0f), nearestBudBranchIdx(-1), nearestBudIdx(-1) {}
 };
 
 
@@ -51,11 +37,11 @@ public:
 
 // For BH Model
 #define ALPHA 1.0f // proportionality constant for resource flow computation
-#define LAMBDA 0.5f
+#define LAMBDA 0.51f
 
 // For Addition of new shoots
-#define OPTIMAL_GROWTH_DIR_WEIGHT 0.1f
-#define TROPISM_DIR_WEIGHT 0.2f
+#define OPTIMAL_GROWTH_DIR_WEIGHT 0.0f
+#define TROPISM_DIR_WEIGHT 0.0f
 #define TROPISM_VECTOR glm::vec3(0.0f, -1.0f, 0.0f)
 
 // For branch radius computation
@@ -96,6 +82,9 @@ struct Bud {
         const int i, const float l, const float br, const int n, BUD_TYPE t, BUD_FATE f) :
         point(p), naturalGrowthDir(nd), optimalGrowthDir(d), environmentQuality(q), accumEnvironmentQuality(aq), resourceBH(re),
         formedBranchIndex(i), internodeLength(l), branchRadius(br), numNearbyAttrPts(n), type(t), fate(f) {}
+    Bud() : point(glm::vec3(0.0f)), naturalGrowthDir(glm::vec3(0.0f)), optimalGrowthDir(glm::vec3(0.0f)), environmentQuality(0.0f), accumEnvironmentQuality(0.0f), resourceBH(0.0f),
+        formedBranchIndex(-1), internodeLength(0.0f), branchRadius(0.0f), numNearbyAttrPts(0), type(TERMINAL), fate(ABORT) {}
+
 };
 
 // Wraps up necessary information regarding a tree branch.
@@ -116,7 +105,7 @@ public:
         buds.emplace_back(p, glm::vec3(growthDirection), glm::vec3(0.0f), 0.0f, 0.0f, 0.0f, -1, INITIAL_BUD_INTERNODE_RADIUS, 0.0f, 0, TERMINAL, DORMANT); // add the terminal bud for this branch. Applies a prelim internode length (tweak, TODO)
     }
     inline const std::vector<Bud>& GetBuds() const { return buds; }
-    inline const int GetAxisOrder() const { return axisOrder; }
+    inline int GetAxisOrder() const { return axisOrder; }
     // Adds a certain number of axillary buds to the list of buds, starting at the index just before the terminal bud
     void AddAxillaryBuds(const Bud& sourceBud, const int numBuds, const float internodeLength);
 };
@@ -134,8 +123,11 @@ public:
     inline const std::vector<TreeBranch>& GetBranches() const {
         return branches;
     }
-    void IterateGrowth(const int numIters, std::vector<AttractorPoint>& attractorPoints);
-    void PerformSpaceColonization(std::vector<AttractorPoint>& attractorPoints);
+    void IterateGrowth(const int numIters, std::vector<AttractorPoint>& attractorPoints, bool useGPU = false);
+    void PerformSpaceColonization(std::vector<AttractorPoint>& attractorPoints, bool useGPU);
+    void PerformSpaceColonizationCPU(std::vector<AttractorPoint>& attractorPoints);
+    void PerformSpaceColonizationGPU(std::vector<AttractorPoint>& attractorPoints);
+    void RemoveAttractorPoints(std::vector<AttractorPoint>& attractorPoints);
     float ComputeQAccumRecursive(TreeBranch & branch);
     void ComputeBHModelBasipetalPass();
     void ComputeResourceFlowRecursive(TreeBranch & branch, float resource);
@@ -143,5 +135,5 @@ public:
     void AppendNewShoots();
     float ComputeBranchRadiiRecursive(TreeBranch & branch);
     void ComputeBranchRadii();
-    void ResetState();
+    void ResetState(std::vector<AttractorPoint>& attractorPoints);
 };

@@ -1,123 +1,146 @@
 
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
-
-#include "kernels.cuh"
+#include "kernels.h"
+#include "../Scene/Tree.h"
 
 #include <stdio.h>
 
-cudaError_t addWithCuda(int *c, const int *a, const int *b, unsigned int size);
+// Note: this implementation uses the "nearestBudIdx" field differently than the CPU implementation. This is because on the GPU, we don't
+// have access to the "branches" vector, so we jus tmake the bud idx the index in the one big array of buds, not the index in the vector
+// of buds for a certain branch.
+__global__ void kernSetNearestBudForAttractorPoints(Bud* dev_buds, const int numBuds, AttractorPoint* dev_attrPts, const int numAttractorPoints, int* dev_mutex) {
+    int index = threadIdx.x + (blockIdx.x * blockDim.x);
+    if (index >= numBuds) {
+        return;
+    }
 
-__global__ void addKernel(int *c, const int *a, const int *b)
-{
-    int i = threadIdx.x;
-    c[i] = a[i] + b[i];
+    Bud& currentBud = dev_buds[index];
+
+    if (currentBud.internodeLength > 0.0f && currentBud.fate == DORMANT) {
+        for (int ap = 0; ap < numAttractorPoints; ++ap) {
+            AttractorPoint& currentAttrPt = dev_attrPts[ap];
+            glm::vec3 budToPtDir = currentAttrPt.point - currentBud.point; // Use current axillary or terminal bud
+            const float budToPtDist2 = glm::length2(budToPtDir);
+            budToPtDir = glm::normalize(budToPtDir);
+            const float dotProd = glm::dot(budToPtDir, currentBud.naturalGrowthDir);
+            if (budToPtDist2 < (14.0f * currentBud.internodeLength * currentBud.internodeLength) && dotProd > std::abs(COS_THETA_SMALL)) {
+                int* mutex = dev_mutex + ap;
+                bool isSet = false;
+                do {
+                    isSet = (atomicCAS(mutex, 0, 1) == 0);
+                    if (isSet) {
+                        if (budToPtDist2 < currentAttrPt.nearestBudDist2) {
+                            currentAttrPt.nearestBudDist2 = budToPtDist2;
+                            currentAttrPt.nearestBudIdx = index;
+                    }
+                    *mutex = 0;
+                    }
+                } while (!isSet);
+            }
+        }
+    }
 }
 
-/*int main()
-{
-    const int arraySize = 5;
-    const int a[arraySize] = { 1, 2, 3, 4, 5 };
-    const int b[arraySize] = { 10, 20, 30, 40, 50 };
-    int c[arraySize] = { 0 };
-
-    // Add vectors in parallel.
-    cudaError_t cudaStatus = addWithCuda(c, a, b, arraySize);
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "addWithCuda failed!");
-        return 1;
+__global__ void kernSpaceCol(Bud* dev_buds, const int numBuds, AttractorPoint* dev_attrPts, const int numAttractorPoints, int* dev_mutex) {
+    int index = threadIdx.x + (blockIdx.x * blockDim.x);
+    if (index >= numBuds) {
+        return;
     }
+    
+    Bud& currentBud = dev_buds[index];
 
-    printf("{1,2,3,4,5} + {10,20,30,40,50} = {%d,%d,%d,%d,%d}\n",
-        c[0], c[1], c[2], c[3], c[4]);
-
-    // cudaDeviceReset must be called before exiting in order for profiling and
-    // tracing tools such as Nsight and Visual Profiler to show complete traces.
-    cudaStatus = cudaDeviceReset();
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaDeviceReset failed!");
-        return 1;
+    // Space Colonization
+    if (currentBud.internodeLength > 0.0f && currentBud.fate == DORMANT) {
+        for (int ap = 0; ap < numAttractorPoints; ++ap) {
+            AttractorPoint& currentAttrPt = dev_attrPts[ap];
+            glm::vec3 budToPtDir = currentAttrPt.point - currentBud.point; // Use current axillary or terminal bud
+            const float budToPtDist2 = glm::length2(budToPtDir);
+            budToPtDir = glm::normalize(budToPtDir);
+            const float dotProd = glm::dot(budToPtDir, currentBud.naturalGrowthDir);
+            if (budToPtDist2 < (14.0f * currentBud.internodeLength * currentBud.internodeLength) && dotProd > std::abs(COS_THETA_SMALL)) {
+                        if (currentAttrPt.nearestBudIdx == index) {
+                            currentBud.optimalGrowthDir += budToPtDir;
+                            ++currentBud.numNearbyAttrPts;
+                            currentBud.environmentQuality = 1.0f;
+                        }
+            }
+        }
     }
+    currentBud.optimalGrowthDir = currentBud.numNearbyAttrPts > 0 ? glm::normalize(currentBud.optimalGrowthDir) : glm::vec3(0.0f);
+}
 
-    return 0;
-}*/ 
-
-// Helper function for using CUDA to add vectors in parallel.
-cudaError_t addWithCuda(int *c, const int *a, const int *b, unsigned int size)
-{
-    int *dev_a = 0;
-    int *dev_b = 0;
-    int *dev_c = 0;
+cudaError_t RunSpaceColonizationKernel(Bud* buds, const int numBuds, AttractorPoint* attractorPoints, const int numAttractorPoints) {
     cudaError_t cudaStatus;
 
-    // Choose which GPU to run on, change this on a multi-GPU system.
+    Bud* dev_buds = 0;
+    AttractorPoint* dev_attrPts = 0;
+    int* dev_mutex = 0;
+
+    // Device
     cudaStatus = cudaSetDevice(0);
     if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaSetDevice failed!  Do you have a CUDA-capable GPU installed?");
+        fprintf(stderr, "cudaSetDevice failed! Do you have a CUDA-capable GPU installed?");
         goto Error;
     }
 
-    // Allocate GPU buffers for three vectors (two input, one output)    .
-    cudaStatus = cudaMalloc((void**)&dev_c, size * sizeof(int));
+    // Cuda Malloc
+    cudaStatus = cudaMalloc((void**)&dev_buds, numBuds * sizeof(Bud));
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMalloc failed!");
         goto Error;
     }
 
-    cudaStatus = cudaMalloc((void**)&dev_a, size * sizeof(int));
+    cudaStatus = cudaMalloc((void**)&dev_attrPts, numAttractorPoints * sizeof(AttractorPoint));
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMalloc failed!");
         goto Error;
     }
 
-    cudaStatus = cudaMalloc((void**)&dev_b, size * sizeof(int));
+    cudaStatus = cudaMalloc((void**)&dev_mutex, numAttractorPoints * sizeof(int));
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMalloc failed!");
         goto Error;
     }
 
-    // Copy input vectors from host memory to GPU buffers.
-    cudaStatus = cudaMemcpy(dev_a, a, size * sizeof(int), cudaMemcpyHostToDevice);
+    // Cuda memcpy
+    cudaStatus = cudaMemcpy(dev_buds, buds, numBuds * sizeof(Bud), cudaMemcpyHostToDevice);
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMemcpy failed!");
         goto Error;
     }
 
-    cudaStatus = cudaMemcpy(dev_b, b, size * sizeof(int), cudaMemcpyHostToDevice);
+    cudaStatus = cudaMemcpy(dev_attrPts, attractorPoints, numAttractorPoints * sizeof(AttractorPoint), cudaMemcpyHostToDevice);
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMemcpy failed!");
         goto Error;
     }
 
-    // Launch a kernel on the GPU with one thread for each element.
-    addKernel << <1, size >> >(dev_c, dev_a, dev_b);
+    cudaMemset(dev_mutex, 0, numAttractorPoints * sizeof(int));
 
-    // Check for any errors launching the kernel
-    cudaStatus = cudaGetLastError();
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "addKernel launch failed: %s\n", cudaGetErrorString(cudaStatus));
-        goto Error;
-    }
+    // Run the kernel
+    const int blockSize = 32;
+    kernSetNearestBudForAttractorPoints << < (numBuds + blockSize - 1) / blockSize, blockSize >> > (dev_buds, numBuds, dev_attrPts, numAttractorPoints, dev_mutex);
+    kernSpaceCol << < (numBuds + blockSize - 1) / blockSize, blockSize >> > (dev_buds, numBuds, dev_attrPts, numAttractorPoints, dev_mutex);
 
-    // cudaDeviceSynchronize waits for the kernel to finish, and returns
-    // any errors encountered during the launch.
-    cudaStatus = cudaDeviceSynchronize();
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching addKernel!\n", cudaStatus);
-        goto Error;
-    }
-
-    // Copy output vector from GPU buffer to host memory.
-    cudaStatus = cudaMemcpy(c, dev_c, size * sizeof(int), cudaMemcpyDeviceToHost);
+    // Cuda Memcpy the Bud info back to the CPU
+    cudaStatus = cudaMemcpy(buds, dev_buds, numBuds * sizeof(Bud), cudaMemcpyDeviceToHost);
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "cudaMemcpy failed!");
         goto Error;
     }
 
 Error:
-    cudaFree(dev_c);
-    cudaFree(dev_a);
-    cudaFree(dev_b);
+    cudaFree(dev_buds);
+    cudaFree(dev_attrPts);
+    cudaFree(dev_mutex);
 
     return cudaStatus;
+}
+
+void TreeApp::PerformSpaceColonizationParallel(Bud* buds, const int numBuds, AttractorPoint* attractorPoints, const int numAttractorPoints) {
+    cudaError_t cudaStatus = RunSpaceColonizationKernel(buds, numBuds, attractorPoints, numAttractorPoints);
+    if (cudaStatus != cudaSuccess) {
+        fprintf(stderr, "addWithCuda failed!");
+    }
 }
