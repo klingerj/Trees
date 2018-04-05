@@ -136,7 +136,7 @@ int main() {
     Tree tree = Tree(glm::vec3(0.0f, 0.0f, 0.0f));
 
     start = std::chrono::system_clock::now();
-    tree.IterateGrowth(NUM_ITERATIONS, attractorPoints, false);
+    tree.IterateGrowth(NUM_ITERATIONS, attractorPoints, true);
     end = std::chrono::system_clock::now();
     elapsed_seconds = end - start;
     end_time = std::chrono::system_clock::to_time_t(end);
