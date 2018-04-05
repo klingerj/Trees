@@ -116,18 +116,16 @@ void Tree::PerformSpaceColonization(std::vector<AttractorPoint>& attractorPoints
         }
     }
     
-    
-    // 2. Compute the optimal growth direction for each bud
-    /*for (unsigned int br = 0; br < (unsigned int)branches.size(); ++br) {
+    // 2. Pass One - For each bud, set the nearest bud of each perceived attractor point
+    for (unsigned int br = 0; br < (unsigned int)branches.size(); ++br) {
         std::vector<Bud>& buds = branches[br].buds;
         const unsigned int numBuds = (unsigned int)buds.size();
         for (unsigned int bu = 0; bu < numBuds; ++bu) {
             Bud& currentBud = buds[bu];
             if (currentBud.internodeLength > 0.0f && currentBud.fate == DORMANT) {
-                //auto attrPtIter = attractorPoints.begin();
                 for (int ap = 0; ap < attractorPoints.size(); ++ap) {
                     AttractorPoint& currentAttrPt = attractorPoints[ap];
-                    glm::vec3 budToPtDir = currentAttrPt.point - currentBud.point; // Use current axillary or terminal bud
+                    glm::vec3 budToPtDir = currentAttrPt.point - currentBud.point; 
                     const float budToPtDist2 = glm::length2(budToPtDir);
                     budToPtDir = glm::normalize(budToPtDir);
                     const float dotProd = glm::dot(budToPtDir, currentBud.naturalGrowthDir);
@@ -138,49 +136,44 @@ void Tree::PerformSpaceColonization(std::vector<AttractorPoint>& attractorPoints
                                                                                                                                                    // growth direction vector.
                         if (budToPtDist2 < currentAttrPt.nearestBudDist2) {
                             currentAttrPt.nearestBudDist2 = budToPtDist2;
-                            if (currentAttrPt.nearestBudBranchIdx != -1 && currentAttrPt.nearestBudIdx != -1) {
-                                Bud& oldNearestBud = branches[currentAttrPt.nearestBudBranchIdx].buds[currentAttrPt.nearestBudIdx];
-                                glm::vec3& oldNearestBudDir = oldNearestBud.optimalGrowthDir;// * (float)oldNearestBud.numNearbyAttrPts
-                                oldNearestBudDir -= budToPtDir;
-                                if (--oldNearestBud.numNearbyAttrPts > 0) {
-                                    //oldNearestBudDir = glm::normalize(oldNearestBudDir);
-                                } else {
-                                    oldNearestBudDir = glm::vec3(0.0f);
-                                    oldNearestBud.accumEnvironmentQuality = 0.0f;
-                                }
-                            }
                             currentAttrPt.nearestBudBranchIdx = br;
                             currentAttrPt.nearestBudIdx = bu;
-                            currentBud.optimalGrowthDir += budToPtDir;
-                            ++currentBud.numNearbyAttrPts;
                         }
                     }
                 }
-                //while (attrPtIter != attractorPoints.end()) {
-
-                    //++attrPtIter;
-                //}
-            }
-            
-            if (currentBud.numNearbyAttrPts > 0) {
-                currentBud.optimalGrowthDir = glm::normalize(currentBud.optimalGrowthDir);
-                currentBud.environmentQuality = 1.0f;
-            } else {
-                currentBud.optimalGrowthDir = glm::vec3(0.0f);
-                currentBud.environmentQuality = 0.0f;
             }
         }
     }
-    
 
-    //print stuff
+    // 2. Pass Two - For each bud, if the current attr pt has the current bud as its nearest, add it's normalized dir to the total optimal dir. normalize it at the end.
     for (unsigned int br = 0; br < (unsigned int)branches.size(); ++br) {
-        const std::vector<Bud>& buds = branches[br].buds;
-        for (unsigned int bu = 0; bu < (unsigned int)buds.size(); ++bu) {
-            std::cout << "x component: " << buds[bu].optimalGrowthDir.x << std::endl;
-            branches[br].buds[bu].optimalGrowthDir = branches[br].buds[bu].numNearbyAttrPts > 0 ? glm::normalize(branches[br].buds[bu].optimalGrowthDir) : glm::vec3(0.0f);
+        std::vector<Bud>& buds = branches[br].buds;
+        const unsigned int numBuds = (unsigned int)buds.size();
+        for (unsigned int bu = 0; bu < numBuds; ++bu) {
+            Bud& currentBud = buds[bu];
+            if (currentBud.internodeLength > 0.0f && currentBud.fate == DORMANT) {
+                for (int ap = 0; ap < attractorPoints.size(); ++ap) {
+                    AttractorPoint& currentAttrPt = attractorPoints[ap];
+                    glm::vec3 budToPtDir = currentAttrPt.point - currentBud.point;
+                    const float budToPtDist2 = glm::length2(budToPtDir);
+                    budToPtDir = glm::normalize(budToPtDir);
+                    const float dotProd = glm::dot(budToPtDir, currentBud.naturalGrowthDir);
+                    if (budToPtDist2 < (14.0f * currentBud.internodeLength * currentBud.internodeLength) && dotProd > std::abs(COS_THETA_SMALL)) { // ~4x internode length - use distance squared
+                                                                                                                                                   // Any given attractor point can only be perceived by one bud - the nearest one.
+                                                                                                                                                   // If we end up find a bud closer to this attractor point than the previously recorded one,
+                                                                                                                                                   // update the point accordingly and remove this attractor point's contribution from that bud's
+                                                                                                                                                   // growth direction vector.
+                        if (currentAttrPt.nearestBudBranchIdx == br && currentAttrPt.nearestBudIdx == bu) {
+                            ++currentBud.numNearbyAttrPts;
+                            currentBud.optimalGrowthDir += budToPtDir;
+                            currentBud.environmentQuality = 1.0f;
+                        }
+                    }
+                }
+                currentBud.optimalGrowthDir = currentBud.numNearbyAttrPts > 0 ? glm::normalize(currentBud.optimalGrowthDir) : glm::vec3(0.0f);
+            }
         }
-    }*/
+    }
 }
 
 float Tree::ComputeQAccumRecursive(TreeBranch& branch) {
@@ -349,7 +342,7 @@ void Tree::ResetState(std::vector<AttractorPoint>& attractorPoints) {
 // TODO: there has to be a better way to do this?
 void Tree::CallComputeShader(std::vector<AttractorPoint>& attractorPoints) {
     // Assemble array of buds
-    std::vector<Bud> buds = std::vector<Bud>();
+    /*std::vector<Bud> buds = std::vector<Bud>();
     for (unsigned int br = 0; br < (unsigned int)branches.size(); ++br) {
         const std::vector<Bud> branchBuds = branches[br].GetBuds();
         for (unsigned int bu = 0; bu < branchBuds.size(); ++bu) {
@@ -369,9 +362,7 @@ void Tree::CallComputeShader(std::vector<AttractorPoint>& attractorPoints) {
         std::vector<Bud>& branchBuds = branches[br].buds;
         for (unsigned int bu = 0; bu < branchBuds.size(); ++bu) {
             branchBuds[bu] = budArray[bu + budCounter];
-            branchBuds[bu].optimalGrowthDir = branchBuds[bu].numNearbyAttrPts > 0 ? glm::normalize(branchBuds[bu].optimalGrowthDir) : glm::vec3(0.0f);
-            std::cout << "x component: " << branchBuds[bu].optimalGrowthDir.x << std::endl;
         }
         budCounter += branchBuds.size();
-    }
+    }*/
 }
