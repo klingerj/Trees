@@ -123,8 +123,11 @@ public:
     inline const std::vector<TreeBranch>& GetBranches() const {
         return branches;
     }
-    void IterateGrowth(const int numIters, std::vector<AttractorPoint>& attractorPoints);
-    void PerformSpaceColonization(std::vector<AttractorPoint>& attractorPoints);
+    void IterateGrowth(const int numIters, std::vector<AttractorPoint>& attractorPoints, bool useGPU = false);
+    void PerformSpaceColonization(std::vector<AttractorPoint>& attractorPoints, bool useGPU);
+    void PerformSpaceColonizationCPU(std::vector<AttractorPoint>& attractorPoints);
+    void PerformSpaceColonizationGPU(std::vector<AttractorPoint>& attractorPoints);
+    void RemoveAttractorPoints(std::vector<AttractorPoint>& attractorPoints);
     float ComputeQAccumRecursive(TreeBranch & branch);
     void ComputeBHModelBasipetalPass();
     void ComputeResourceFlowRecursive(TreeBranch & branch, float resource);
@@ -133,7 +136,4 @@ public:
     float ComputeBranchRadiiRecursive(TreeBranch & branch);
     void ComputeBranchRadii();
     void ResetState(std::vector<AttractorPoint>& attractorPoints);
-
-    // Compute shader testing
-    void CallComputeShader(std::vector<AttractorPoint>& attractorPoints);
 };

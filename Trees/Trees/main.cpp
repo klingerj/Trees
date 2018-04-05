@@ -54,7 +54,7 @@ void processInput(GLFWwindow *window) {
 int main() {
     // Test Mesh Loading
     Mesh m = Mesh();
-    m.LoadFromFile("OBJs/sphereLowPoly.obj");
+    m.LoadFromFile("OBJs/helixRot.obj");
     Mesh m2 = Mesh();
     m2.LoadFromFile("OBJs/leaf.obj");
 
@@ -111,7 +111,7 @@ int main() {
             points.emplace_back(p + glm::vec3(0.0f, 10.0f, 0.0f));
         }*/ // cylinder sdf
 
-        const glm::vec3 p = glm::vec3(dis(rng) * 2.0f /** -0.6f*/, dis(rng) * 2.0f /*0.5f*/  /** 0.012f*/, dis(rng) * 4.0f /** 0.113f*/);
+        const glm::vec3 p = glm::vec3(dis(rng) * 2.0f, dis(rng) * 2.0f, dis(rng) * 4.0f);
         
         // Intersect with mesh instead
         if (m.Contains(p)) {
@@ -136,7 +136,7 @@ int main() {
     Tree tree = Tree(glm::vec3(0.0f, 0.0f, 0.0f));
 
     start = std::chrono::system_clock::now();
-    tree.IterateGrowth(NUM_ITERATIONS, attractorPoints);
+    tree.IterateGrowth(NUM_ITERATIONS, attractorPoints, false);
     end = std::chrono::system_clock::now();
     elapsed_seconds = end - start;
     end_time = std::chrono::system_clock::to_time_t(end);
@@ -538,9 +538,9 @@ int main() {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // Attractor Points
-        /*glBindVertexArray(VAO);
+        glBindVertexArray(VAO);
         sp.setCameraViewProj("cameraViewProj", camera.GetViewProj());
-        glDrawElements(GL_POINTS, (GLsizei) tempPtsIdx.size(), GL_UNSIGNED_INT, 0);*/
+        glDrawElements(GL_POINTS, (GLsizei) tempPtsIdx.size(), GL_UNSIGNED_INT, 0);
 
         // old cubes / new bud points
         glBindVertexArray(VAO2);

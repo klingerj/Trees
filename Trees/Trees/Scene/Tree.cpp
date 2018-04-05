@@ -43,27 +43,16 @@ void TreeBranch::AddAxillaryBuds(const Bud& sourceBud, const int numBuds, const 
 
 /// Tree Class Functions
 
-void Tree::IterateGrowth(const int numIters, std::vector<AttractorPoint>& attractorPoints) {
+void Tree::IterateGrowth(const int numIters, std::vector<AttractorPoint>& attractorPoints, bool useGPU) {
     for (int n = 0; n < numIters; ++n) {
-
         std::cout << "Iteration #: " << n << std::endl;
 
         auto start = std::chrono::system_clock::now();
-        PerformSpaceColonization(attractorPoints); // 1. Compute Q (presence of space/light) and optimal growth direction using space colonization
+        PerformSpaceColonization(attractorPoints, useGPU); // 1. Compute Q (presence of space/light) and optimal growth direction using space colonization
         auto end = std::chrono::system_clock::now();
         std::chrono::duration<double> elapsed_seconds = end - start;
         std::time_t end_time = std::chrono::system_clock::to_time_t(end);
-        std::cout << "Elapsed time for Space Colonization on CPU: " << elapsed_seconds.count() << "s\n";
-
-        // TODO: Remove
-        // testing for compute shader here
-        // for now, just want to send the arrays to the gpu, call a basic kernel and copy the data back
-        start = std::chrono::system_clock::now();
-        CallComputeShader(attractorPoints);
-        end = std::chrono::system_clock::now();
-        elapsed_seconds = end - start;
-        end_time = std::chrono::system_clock::to_time_t(end);
-        std::cout << "Elapsed time for Space Colonization on GPU: " << elapsed_seconds.count() << "s\n";
+        std::cout << "Elapsed time for Space Colonization: " << elapsed_seconds.count() << "s\n";
 
         start = std::chrono::system_clock::now();
         ComputeBHModelBasipetalPass();             // 2. Using BH Model, flow resource basipetally and then acropetally
@@ -97,25 +86,18 @@ void Tree::IterateGrowth(const int numIters, std::vector<AttractorPoint>& attrac
     std::time_t end_time = std::chrono::system_clock::to_time_t(end);
     std::cout << "Elapsed time for Computing Branch Radii: " << elapsed_seconds.count() << "s\n";
 }
-void Tree::PerformSpaceColonization(std::vector<AttractorPoint>& attractorPoints) {
-    // 1. Remove all attractor points that are too close to any bud
-    for (unsigned int br = 0; br < (unsigned int)branches.size(); ++br) {
-        const std::vector<Bud>& buds = branches[br].buds;
-        for (unsigned int bu = 0; bu < (unsigned int)buds.size(); ++bu) {
 
-            auto attrPtIter = attractorPoints.begin();
-            while (attrPtIter != attractorPoints.end()) {
-                const Bud& currentBud = buds[bu];
-                const float budToPtDist = glm::length2(attrPtIter->point - currentBud.point);
-                if (budToPtDist < 5.1f * currentBud.internodeLength * currentBud.internodeLength) { // 2x internode length - use distance squared
-                    attrPtIter = attractorPoints.erase(attrPtIter); // This attractor point is close to the bud, remove it
-                } else {
-                    ++attrPtIter;
-                }
-            }
-        }
-    }
+void Tree::PerformSpaceColonization(std::vector<AttractorPoint>& attractorPoints, bool useGPU) {
+    RemoveAttractorPoints(attractorPoints);
     
+    if (useGPU) {
+        PerformSpaceColonizationGPU(attractorPoints);
+    } else {
+        PerformSpaceColonizationCPU(attractorPoints);
+    }
+}
+
+void Tree::PerformSpaceColonizationCPU(std::vector<AttractorPoint>& attractorPoints) {
     // 2. Pass One - For each bud, set the nearest bud of each perceived attractor point
     for (unsigned int br = 0; br < (unsigned int)branches.size(); ++br) {
         std::vector<Bud>& buds = branches[br].buds;
@@ -125,7 +107,7 @@ void Tree::PerformSpaceColonization(std::vector<AttractorPoint>& attractorPoints
             if (currentBud.internodeLength > 0.0f && currentBud.fate == DORMANT) {
                 for (int ap = 0; ap < attractorPoints.size(); ++ap) {
                     AttractorPoint& currentAttrPt = attractorPoints[ap];
-                    glm::vec3 budToPtDir = currentAttrPt.point - currentBud.point; 
+                    glm::vec3 budToPtDir = currentAttrPt.point - currentBud.point;
                     const float budToPtDist2 = glm::length2(budToPtDir);
                     budToPtDir = glm::normalize(budToPtDir);
                     const float dotProd = glm::dot(budToPtDir, currentBud.naturalGrowthDir);
@@ -173,6 +155,33 @@ void Tree::PerformSpaceColonization(std::vector<AttractorPoint>& attractorPoints
                 currentBud.optimalGrowthDir = currentBud.numNearbyAttrPts > 0 ? glm::normalize(currentBud.optimalGrowthDir) : glm::vec3(0.0f);
             }
         }
+    }
+}
+
+void Tree::PerformSpaceColonizationGPU(std::vector<AttractorPoint>& attractorPoints) {
+    // Assemble array of buds
+    std::vector<Bud> buds = std::vector<Bud>();
+    for (unsigned int br = 0; br < (unsigned int)branches.size(); ++br) {
+    const std::vector<Bud> branchBuds = branches[br].GetBuds();
+    for (unsigned int bu = 0; bu < branchBuds.size(); ++bu) {
+    buds.emplace_back(branchBuds[bu]);
+    }
+    }
+
+    Bud* budArray = new Bud[buds.size()];
+    for (int i = 0; i < buds.size(); ++i) {
+    budArray[i] = buds[i];
+    }
+    TreeApp::PerformSpaceColonizationParallel(budArray, buds.size(), attractorPoints.data(), attractorPoints.size());
+
+    // Copy bud info back to the tree
+    int budCounter = 0;
+    for (unsigned int br = 0; br < (unsigned int)branches.size(); ++br) {
+    std::vector<Bud>& branchBuds = branches[br].buds;
+    for (unsigned int bu = 0; bu < branchBuds.size(); ++bu) {
+            branchBuds[bu] = budArray[bu + budCounter];
+        }
+        budCounter += branchBuds.size();
     }
 }
 
@@ -315,9 +324,11 @@ float Tree::ComputeBranchRadiiRecursive(TreeBranch& branch) {
     }
     return branchRadius;
 }
+
 void Tree::ComputeBranchRadii() {
     ComputeBranchRadiiRecursive(branches[0]); // ignore return value
 }
+
 void Tree::ResetState(std::vector<AttractorPoint>& attractorPoints) {
     for (unsigned int br = 0; br < (unsigned int)branches.size(); ++br) {
         std::vector<Bud>& buds = branches[br].buds;
@@ -339,30 +350,24 @@ void Tree::ResetState(std::vector<AttractorPoint>& attractorPoints) {
     }
 }
 
-// TODO: there has to be a better way to do this?
-void Tree::CallComputeShader(std::vector<AttractorPoint>& attractorPoints) {
-    // Assemble array of buds
-    /*std::vector<Bud> buds = std::vector<Bud>();
+// Remove all attractor points that are too close to buds
+void Tree::RemoveAttractorPoints(std::vector<AttractorPoint>& attractorPoints) {
+    // 1. Remove all attractor points that are too close to any bud
     for (unsigned int br = 0; br < (unsigned int)branches.size(); ++br) {
-        const std::vector<Bud> branchBuds = branches[br].GetBuds();
-        for (unsigned int bu = 0; bu < branchBuds.size(); ++bu) {
-            buds.emplace_back(branchBuds[bu]);
+        const std::vector<Bud>& buds = branches[br].buds;
+        for (unsigned int bu = 0; bu < (unsigned int)buds.size(); ++bu) {
+
+            auto attrPtIter = attractorPoints.begin();
+            while (attrPtIter != attractorPoints.end()) {
+                const Bud& currentBud = buds[bu];
+                const float budToPtDist = glm::length2(attrPtIter->point - currentBud.point);
+                if (budToPtDist < 5.1f * currentBud.internodeLength * currentBud.internodeLength) { // ~2x internode length - use distance squared
+                    attrPtIter = attractorPoints.erase(attrPtIter); // This attractor point is close to the bud, remove it
+                }
+                else {
+                    ++attrPtIter;
+                }
+            }
         }
     }
-
-    Bud* budArray = new Bud[buds.size()];
-    for (int i = 0; i < buds.size(); ++i) {
-        budArray[i] = buds[i];
-    }
-    TreeApp::PerformSpaceColonizationParallel(budArray, buds.size(), attractorPoints.data(), attractorPoints.size());
-
-    // Copy bud info back to the tree
-    int budCounter = 0;
-    for (unsigned int br = 0; br < (unsigned int)branches.size(); ++br) {
-        std::vector<Bud>& branchBuds = branches[br].buds;
-        for (unsigned int bu = 0; bu < branchBuds.size(); ++bu) {
-            branchBuds[bu] = budArray[bu + budCounter];
-        }
-        budCounter += branchBuds.size();
-    }*/
 }
