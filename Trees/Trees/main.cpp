@@ -27,6 +27,15 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     camera.SetAspect((float)width / height);
 }
 
+// Based on https://stackoverflow.com/questions/45130391/opengl-get-cursor-coordinate-on-mouse-click-in-c
+void mouse_click_callback(GLFWwindow* window, int button, int action, int mods) {
+    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
+        double xpos, ypos;
+        glfwGetCursorPos(window, &xpos, &ypos);
+        std::cout << "Cursor Position at (" << xpos << " : " << ypos << std::endl;
+    }
+}
+
 // Keyboard controls
 void processInput(GLFWwindow *window) {
 
@@ -83,6 +92,7 @@ int main() {
 
     glViewport(0, 0, VIEWPORT_WIDTH_INITIAL, VIEWPORT_HEIGHT_INITIAL);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+    glfwSetMouseButtonCallback(window, mouse_click_callback);
 
     // Test loop vectorization. Note: using the compiler flags, this stuff only seems to compile in Release Mode
     // Needed flags: /O2 /Qvec-report:1 (can also use report:2)
