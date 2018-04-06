@@ -2,19 +2,17 @@
 #include "GLFW/glfw3.h"
 #include "glm/glm.hpp"
 #include "glm/gtx/norm.hpp"
-#include "pcg_random.hpp"
 
-#include "OpenGL\ShaderProgram.h"
-#include "Scene\Mesh.h"
-#include "Scene\Camera.h"
-#include "Scene\Tree.h"
-#include "Scene\Globals.h"
+#include "OpenGL/ShaderProgram.h"
+#include "Scene/Mesh.h"
+#include "Scene/Camera.h"
+#include "Scene/Tree.h"
+#include "Scene/Globals.h"
+#include "Scene/TreeApplication.h"
 
 #include <iostream>
 #include <vector>
 #include <random>
-
-// For performance analysis / timing
 #include <chrono>
 #include <ctime>
 
@@ -94,69 +92,37 @@ int main() {
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     glfwSetMouseButtonCallback(window, mouse_click_callback);
 
-    // Test loop vectorization. Note: using the compiler flags, this stuff only seems to compile in Release Mode
-    // Needed flags: /O2 /Qvec-report:1 (can also use report:2)
-    // Source: https://software.intel.com/en-us/articles/a-guide-to-auto-vectorization-with-intel-c-compilers
 
-    // Stores the point positions: currently a list of floats. I need to include glm or eigen
-    // Is it faster to initialize a vector of points with # and value and then set the values, or to push_back values onto an empty list
-    // Answer to that: https://stackoverflow.com/questions/32199388/what-is-better-reserve-vector-capacity-preallocate-to-size-or-push-back-in-loo
-    // Best options seem to be preallocate or emplace_back with reserve
-    const unsigned int numPoints = 1000000; //300k for heart
-    unsigned int numPointsIncluded = 0;
-    std::vector<glm::vec3> points = std::vector<glm::vec3>();
+    // App creation and initialization
+    TreeParameters treeParams;
 
-    // Using PCG RNG: http://www.pcg-random.org/using-pcg-cpp.html
 
-    // Make a random number engine
-    pcg32 rng(101);
+    // Create an initial AttractorPointCloud
+    AttractorPointCloud attractorPointCloud = AttractorPointCloud();
+    attractorPointCloud.GeneratePoints(m, 1000000);
 
-    std::uniform_real_distribution<float> dis(-1.0f, 1.0f);
+    TreeApplication treeApp = TreeApplication();
 
-    auto start = std::chrono::system_clock::now();
-    // Unfortunately, we can't really do any memory preallocating because we don't actually know how many points will be included
-    for (unsigned int i = 0; i < numPoints; ++i) {
-        /*const glm::vec3 p = glm::vec3(dis(rng) * 10.0f, dis(rng) * 10.0f, dis(rng) * 10.0f); // for big cube growth chamber: scales of 10, 20, 10
-        if (p.x * p.x + p.z * p.z < 10.0f) {
-            points.emplace_back(p + glm::vec3(0.0f, 10.0f, 0.0f));
-        }*/ // cylinder sdf
 
-        const glm::vec3 p = glm::vec3(dis(rng) * 2.0f, dis(rng) * 2.0f, dis(rng) * 4.0f);
-        
-        // Intersect with mesh instead
-        if (m.Contains(p)) {
-            points.emplace_back(p);
-            ++numPointsIncluded;
-        }
-    }
 
-    // Create the actual AttractorPoints
-    std::vector<AttractorPoint> attractorPoints = std::vector<AttractorPoint>();
-    attractorPoints.reserve(numPointsIncluded);
-    for (unsigned int i = 0; i < numPointsIncluded; ++i) {
-        attractorPoints.emplace_back(AttractorPoint(points[i]));
-    }
-    auto end = std::chrono::system_clock::now();
-    std::chrono::duration<double> elapsed_seconds = end - start;
-    std::time_t end_time = std::chrono::system_clock::to_time_t(end);
-    std::cout << "Elapsed time for Attractor Point Generation: " << elapsed_seconds.count() << "s\n";
-    std::cout << "Number of Attractor Points: " << numPointsIncluded << "\n\n";
+
 
     // new tree generation
     Tree tree = Tree(glm::vec3(0.0f, 0.0f, 0.0f));
 
-    start = std::chrono::system_clock::now();
-    tree.IterateGrowth(NUM_ITERATIONS, attractorPoints, true);
-    end = std::chrono::system_clock::now();
-    elapsed_seconds = end - start;
-    end_time = std::chrono::system_clock::to_time_t(end);
+    auto start = std::chrono::system_clock::now();
+    tree.IterateGrowth(NUM_ITERATIONS, attractorPointCloud.GetPointsCopy(), true);
+    auto end = std::chrono::system_clock::now();
+    std::chrono::duration<double> elapsed_seconds = end - start;
+    std::time_t end_time = std::chrono::system_clock::to_time_t(end);
     std::cout << "Total Elapsed time for Tree Generation: " << elapsed_seconds.count() << "s\n";
 
     // Code for GL stuff
 
     // Create indices for the attractor points
-    std::vector<unsigned int> indices = std::vector<unsigned int>(numPointsIncluded);
-    for (unsigned int i = 0; i < numPointsIncluded; ++i) {
+    const unsigned int numPoints = (unsigned int)attractorPointCloud.GetPoints().size();
+    std::vector<unsigned int> indices = std::vector<unsigned int>(numPoints);
+    for (unsigned int i = 0; i < numPoints; ++i) {
         indices[i] = i;
     }
 
@@ -421,13 +387,13 @@ int main() {
     // Points
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     std::vector<glm::vec3> tempPts = std::vector<glm::vec3>();
-    tempPts.reserve(attractorPoints.size());
-    for (int i = 0; i < attractorPoints.size(); ++i) {
-        tempPts.emplace_back(attractorPoints[i].point);
+    tempPts.reserve(numPoints);
+    for (unsigned int i = 0; i < numPoints; ++i) {
+        tempPts.emplace_back(attractorPointCloud.GetPoints()[i].point);
     }
     std::vector<unsigned int> tempPtsIdx = std::vector<unsigned int>();
-    tempPtsIdx.reserve(attractorPoints.size());
-    for (int i = 0; i < attractorPoints.size(); ++i) {
+    tempPtsIdx.reserve(numPoints);
+    for (unsigned int i = 0; i < numPoints; ++i) {
         tempPtsIdx.emplace_back(i);
     }
     glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * tempPts.size(), tempPts.data(), GL_STATIC_DRAW);

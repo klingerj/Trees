@@ -5,27 +5,12 @@
 #include "glm/gtx/norm.hpp"
 
 #include "Globals.h"
+#include "AttractorPointCloud.h"
 #include "..\CUDA\kernels.h"
 
 #include <vector>
 #include <chrono>
 #include <ctime>
-
-
-struct AttractorPoint {
-    glm::vec3 point; // Point in world space
-    float nearestBudDist2; // how close the nearest bud is that has this point in its perception volume, squared
-    int nearestBudBranchIdx; // index in the array of the branch of that bud ^^
-    int nearestBudIdx; // index in the array of the bud of that branch ^^
-
-    AttractorPoint(const glm::vec3& p) : point(p), nearestBudDist2(9999999.0f), nearestBudBranchIdx(-1), nearestBudIdx(-1) {}
-};
-
-
-
-
-
-
 
 /// User-defined Parameters for the growth simulation
 
@@ -49,6 +34,25 @@ struct AttractorPoint {
 #define PIPE_EXPONENT 2.8f // somewhere between 2 and 3 usually according to the paper
 
 /// Definition of structures
+
+struct TreeParameters {
+    float initialBranchRadius;
+    float initialBudInternodeRadius;
+    float perceptionCosTheta;
+    float perceptionCosThetaSmall;
+    float BHAlpha;
+    float BHLambda;
+    float optimalGrowthDirWeight;
+    float tropismDirWeight;
+    glm::vec3 tropismVector;
+    float minimumBranchRadius;
+    float pipeModelExponent;
+
+    TreeParameters() :
+        initialBranchRadius(INITIAL_BRANCH_RADIUS), initialBudInternodeRadius(INITIAL_BUD_INTERNODE_RADIUS), perceptionCosTheta(COS_THETA), perceptionCosThetaSmall(COS_THETA_SMALL),
+        BHAlpha(ALPHA), BHLambda(LAMBDA), optimalGrowthDirWeight(OPTIMAL_GROWTH_DIR_WEIGHT), tropismDirWeight(TROPISM_DIR_WEIGHT), tropismVector(TROPISM_DIR_WEIGHT),
+        minimumBranchRadius(MINIMUM_BRANCH_RADIUS), pipeModelExponent(PIPE_EXPONENT) {}
+};
 
 enum BUD_FATE {
     DORMANT,
@@ -78,8 +82,8 @@ struct Bud {
     BUD_FATE fate;
 
     // Constructor: to allow use with emplace_back() for std::vectors
-    Bud(const glm::vec3& p, const glm::vec3& nd, const glm::vec3& d, const float q, const float aq, const float re,
-        const int i, const float l, const float br, const int n, BUD_TYPE t, BUD_FATE f) :
+    Bud(const glm::vec3& p, const glm::vec3& nd, const glm::vec3& d, float q, float aq, float re,
+        int i, float l, float br, int n, BUD_TYPE t, BUD_FATE f) :
         point(p), naturalGrowthDir(nd), optimalGrowthDir(d), environmentQuality(q), accumEnvironmentQuality(aq), resourceBH(re),
         formedBranchIndex(i), internodeLength(l), branchRadius(br), numNearbyAttrPts(n), type(t), fate(f) {}
     Bud() : point(glm::vec3(0.0f)), naturalGrowthDir(glm::vec3(0.0f)), optimalGrowthDir(glm::vec3(0.0f)), environmentQuality(0.0f), accumEnvironmentQuality(0.0f), resourceBH(0.0f),
@@ -98,7 +102,7 @@ private:
     int prevBranchIndex; // Index of the branch supporting this one in the 
 
 public:
-    TreeBranch(const glm::vec3& p, const glm::vec3& d, const int ao, const int bi) :
+    TreeBranch(const glm::vec3& p, const glm::vec3& d, int ao, int bi) :
         growthDirection(d), radius(INITIAL_BRANCH_RADIUS), axisOrder(ao), prevBranchIndex(bi) {
         buds = std::vector<Bud>();
         buds.reserve(8); // Reserve memory beforehand so we are less likely to have to resize the array later on. Performance test this.

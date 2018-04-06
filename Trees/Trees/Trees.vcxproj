@@ -153,9 +153,11 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="OpenGL\ShaderProgram.cpp" />
     <ClCompile Include="Raytracing\Raytracing.cpp" />
+    <ClCompile Include="Scene\AttractorPointCloud.cpp" />
     <ClCompile Include="Scene\Camera.cpp" />
     <ClCompile Include="Scene\Mesh.cpp" />
     <ClCompile Include="Scene\Tree.cpp" />
+    <ClCompile Include="Scene\TreeApplication.cpp" />
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="CUDA\kernels.cu">
@@ -176,10 +178,12 @@
     <ClInclude Include="CUDA\kernels.h" />
     <ClInclude Include="OpenGL\ShaderProgram.h" />
     <ClInclude Include="Raytracing\Raytracing.h" />
+    <ClInclude Include="Scene\AttractorPointCloud.h" />
     <ClInclude Include="Scene\Camera.h" />
     <ClInclude Include="Scene\Globals.h" />
     <ClInclude Include="Scene\Mesh.h" />
     <ClInclude Include="Scene\Tree.h" />
+    <ClInclude Include="Scene\TreeApplication.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
