@@ -18,7 +18,7 @@
 #define INITIAL_BRANCH_RADIUS 0.1f
 #define INITIAL_BUD_INTERNODE_RADIUS 0.05f
 #define COS_THETA 0.70710678118f // cos(pi/4)
-#define COS_THETA_SMALL 0.86602540378 // cos(pi6)
+#define COS_THETA_SMALL 0.86602540378f // cos(pi6)
 
 // For BH Model
 #define ALPHA 1.0f // proportionality constant for resource flow computation

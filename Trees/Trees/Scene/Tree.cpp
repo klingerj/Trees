@@ -172,7 +172,7 @@ void Tree::PerformSpaceColonizationGPU(std::vector<AttractorPoint>& attractorPoi
     for (int i = 0; i < buds.size(); ++i) {
     budArray[i] = buds[i];
     }
-    TreeApp::PerformSpaceColonizationParallel(budArray, buds.size(), attractorPoints.data(), attractorPoints.size());
+    TreeApp::PerformSpaceColonizationParallel(budArray, (int)buds.size(), attractorPoints.data(), (int)attractorPoints.size());
 
     // Copy bud info back to the tree
     int budCounter = 0;
@@ -181,13 +181,13 @@ void Tree::PerformSpaceColonizationGPU(std::vector<AttractorPoint>& attractorPoi
     for (unsigned int bu = 0; bu < branchBuds.size(); ++bu) {
             branchBuds[bu] = budArray[bu + budCounter];
         }
-        budCounter += branchBuds.size();
+        budCounter += (unsigned int)branchBuds.size();
     }
 }
 
 float Tree::ComputeQAccumRecursive(TreeBranch& branch) {
     float accumQ = 0.0f;
-    for (int bu = branch.buds.size() - 1; bu >= 0; --bu) {
+    for (int bu = (int)branch.buds.size() - 1; bu >= 0; --bu) {
         Bud& currentBud = branch.buds[bu];
         switch (currentBud.type) {
         case TERMINAL:
@@ -297,7 +297,7 @@ void Tree::AppendNewShoots() {
 // Using the "pipe model" described in the paper, compute the radius of each branch
 float Tree::ComputeBranchRadiiRecursive(TreeBranch& branch) {
     float branchRadius = MINIMUM_BRANCH_RADIUS;
-    for (int bu = branch.buds.size() - 1; bu >= 0; --bu) {
+    for (int bu = (int)branch.buds.size() - 1; bu >= 0; --bu) {
         Bud& currentBud = branch.buds[bu];
         switch (currentBud.type) {
         case TERMINAL:

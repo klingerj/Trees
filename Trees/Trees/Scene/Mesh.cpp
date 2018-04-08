@@ -89,7 +89,7 @@ Intersection Mesh::Intersect(const Ray& r) const {
     return finalIsect;
 }
 
-const bool Mesh::Contains(const glm::vec3 & p) const {
+bool Mesh::Contains(const glm::vec3 & p) const {
     Ray r = Ray(p, glm::vec3(1.0f, 0.0f, 0.0f)); // Ray direction is arbitrary. It can be anything
     Intersection isect = Intersect(r);
     unsigned int isectCounter = 0;

@@ -20,7 +20,7 @@ void AttractorPointCloud::GeneratePoints(const Mesh& m, unsigned int numPoints) 
 
         // Intersect with mesh instead
         if (m.Contains(p)) {
-            points.emplace_back(AttractorPoint(points[i]));
+            points.emplace_back(AttractorPoint(p));
         }
     }
     auto end = std::chrono::system_clock::now();

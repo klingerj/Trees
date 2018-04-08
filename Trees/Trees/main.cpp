@@ -9,6 +9,7 @@
 #include "Scene/Tree.h"
 #include "Scene/Globals.h"
 #include "Scene/TreeApplication.h"
+#include "Scene/UIManager.h"
 
 #include <iostream>
 #include <vector>
@@ -19,6 +20,7 @@
 Camera camera = Camera(glm::vec3(0.0f, 1.63f, 0.0f), 0.7853981634f, // 45 degrees vs 75 degrees
 (float)VIEWPORT_WIDTH_INITIAL / VIEWPORT_HEIGHT_INITIAL, 0.01f, 2000.0f, 0.0f, -31.74f, 5.4f);
 const float camMoveSensitivity = 0.03f;
+
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     glViewport(0, 0, width, height);
@@ -92,10 +94,9 @@ int main() {
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     glfwSetMouseButtonCallback(window, mouse_click_callback);
 
+    UIManager uiMgr = UIManager(window);
 
     // App creation and initialization
-    TreeParameters treeParams;
-
 
     // Create an initial AttractorPointCloud
     AttractorPointCloud attractorPointCloud = AttractorPointCloud();
@@ -509,6 +510,8 @@ int main() {
     // Render loop
     while (!glfwWindowShouldClose(window)) {
         processInput(window);
+        uiMgr.ImguiNewFrame();
+        uiMgr.HandleInput(treeApp.GetTreeParameters());
 
         glClearColor(0.1f, 0.2f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -549,6 +552,7 @@ int main() {
         sp4.setCameraViewProj("cameraViewProj", camera.GetViewProj());
         glDrawElements(GL_TRIANGLES, (GLsizei)leafIndices.size(), GL_UNSIGNED_INT, 0);
 
+        uiMgr.RenderImgui();
         glfwSwapBuffers(window);
         glfwPollEvents();
     }

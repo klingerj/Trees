@@ -27,12 +27,12 @@ private:
     float t;
 public:
     Intersection() : Intersection(glm::vec3(0.f), glm::vec3(0.f), -1.0f) {}
-    Intersection(const glm::vec3& p, const glm::vec3& n, const float t) : point(p), normal(n), t(t) {}
+    Intersection(const glm::vec3& p, const glm::vec3& n, float t) : point(p), normal(n), t(t) {}
     inline Ray SpawnRayAtPoint(const Ray& r) const {
         const glm::vec3 originOffset = normal * EPSILON * ((dot(normal, r.GetDirection()) > 0.0f) ? 1.0f : -1.0f);
         return Ray(point + originOffset, r.GetDirection());
     }
-    inline const bool IsValid() const { return t > 0.0f; }
-    inline const float GetT() const { return t; }
+    inline bool IsValid() const { return t > 0.0f; }
+    inline float GetT() const { return t; }
     inline const glm::vec3& GetPoint() const { return point; }
 };

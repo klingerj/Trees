@@ -1,8 +1,7 @@
 #pragma once
+#include <vector>
 #include "glm/glm.hpp"
 #include "../Raytracing/Raytracing.h"
-
-#include <vector>
 
 // Note: UVs and colors aren't necessary to draw (for this project)
 struct Vertex {
@@ -46,5 +45,5 @@ public:
     inline const std::vector<glm::vec3>& GetNormals() const { return normals; }*/
     inline const std::vector<unsigned int>& GetIndices() const { return indices; }
     Intersection Intersect(const Ray& r) const; // Intersect a single ray with this mesh
-    const bool Contains(const glm::vec3& p) const; // Check if a point intersects this mesh an odd number of times
+    bool Contains(const glm::vec3& p) const; // Check if a point intersects this mesh an odd number of times
 };

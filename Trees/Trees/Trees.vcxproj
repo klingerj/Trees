@@ -69,17 +69,17 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <IncludePath>$(SolutionDir)..\Libraries\glad\include;$(SolutionDir)..\Libraries\glfw-3.2.1\include;$(SolutionDir)..\Libraries\glm;$(SolutionDir)..\Libraries\tinyobjloader;$(SolutionDir)..\Libraries\pcg-cpp\include;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)..\Libraries\glad\include;$(SolutionDir)..\Libraries\glfw-3.2.1\include;$(SolutionDir)..\Libraries\glm;$(SolutionDir)..\Libraries\tinyobjloader;$(SolutionDir)..\Libraries\pcg-cpp\include;$(SolutionDir)..\Libraries\imgui;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <IncludePath>$(SolutionDir)..\Libraries\glad\include;$(SolutionDir)..\Libraries\glfw-3.2.1\include;$(SolutionDir)..\Libraries\glm;$(SolutionDir)..\Libraries\tinyobjloader;$(SolutionDir)..\Libraries\pcg-cpp\include;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)..\Libraries\glad\include;$(SolutionDir)..\Libraries\glfw-3.2.1\include;$(SolutionDir)..\Libraries\glm;$(SolutionDir)..\Libraries\tinyobjloader;$(SolutionDir)..\Libraries\pcg-cpp\include;$(SolutionDir)..\Libraries\imgui;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IncludePath>$(SolutionDir)..\Libraries\glad\include;$(SolutionDir)..\Libraries\glfw-3.2.1\include;$(SolutionDir)..\Libraries\glm;$(SolutionDir)..\Libraries\tinyobjloader;$(SolutionDir)..\Libraries\pcg-cpp\include;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)..\Libraries\glad\include;$(SolutionDir)..\Libraries\glfw-3.2.1\include;$(SolutionDir)..\Libraries\glm;$(SolutionDir)..\Libraries\tinyobjloader;$(SolutionDir)..\Libraries\pcg-cpp\include;$(SolutionDir)..\Libraries\imgui;$(IncludePath)</IncludePath>
     <LibraryPath>$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <IncludePath>$(SolutionDir)..\Libraries\glad\include;$(SolutionDir)..\Libraries\glfw-3.2.1\include;$(SolutionDir)..\Libraries\glm;$(SolutionDir)..\Libraries\tinyobjloader;$(SolutionDir)..\Libraries\pcg-cpp\include;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)..\Libraries\glad\include;$(SolutionDir)..\Libraries\glfw-3.2.1\include;$(SolutionDir)..\Libraries\glm;$(SolutionDir)..\Libraries\tinyobjloader;$(SolutionDir)..\Libraries\pcg-cpp\include;$(SolutionDir)..\Libraries\imgui;$(IncludePath)</IncludePath>
     <LibraryPath>$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -150,6 +150,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\Libraries\glad\src\glad.c" />
+    <ClCompile Include="..\..\Libraries\imgui\imgui_impl_glfw_glad.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="OpenGL\ShaderProgram.cpp" />
     <ClCompile Include="Raytracing\Raytracing.cpp" />
@@ -158,6 +159,7 @@
     <ClCompile Include="Scene\Mesh.cpp" />
     <ClCompile Include="Scene\Tree.cpp" />
     <ClCompile Include="Scene\TreeApplication.cpp" />
+    <ClCompile Include="Scene\UIManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="CUDA\kernels.cu">
@@ -184,6 +186,7 @@
     <ClInclude Include="Scene\Mesh.h" />
     <ClInclude Include="Scene\Tree.h" />
     <ClInclude Include="Scene\TreeApplication.h" />
+    <ClInclude Include="Scene\UIManager.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

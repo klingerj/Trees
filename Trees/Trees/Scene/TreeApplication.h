@@ -10,6 +10,9 @@ private:
     std::vector<AttractorPointCloud> sceneAttractorPointsCloud;
 public:
     TreeApplication() {
-
+        treeParameters = TreeParameters();
+        std::vector<Tree> sceneTrees = std::vector<Tree>();
+        std::vector<AttractorPointCloud> sceneAttractorPointsCloud = std::vector<AttractorPointCloud>();
     }
+    inline TreeParameters& GetTreeParameters() { return treeParameters; }
 };
