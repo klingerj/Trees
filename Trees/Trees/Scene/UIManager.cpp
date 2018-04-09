@@ -17,6 +17,5 @@ void UIManager::ImguiSetup(GLFWwindow* window) {
 }
 
 void UIManager::HandleInput(TreeParameters& treeParams) {
-    ImGui::SliderFloat("Borchert-Honda Model Lambda (0 = Wide growth, 1 = Tall growth)", &treeParams.BHLambda, 0.0f, 1.0f);
-    std::cout << treeParams.BHLambda << std::endl;
+    ImGui::SliderFloat("BH Model Lambda (0 = Wide, 1 = Tall)", &treeParams.BHLambda, 0.0f, 1.0f);
 }

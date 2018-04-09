@@ -75,9 +75,59 @@ ShaderProgram::ShaderProgram(const GLchar* vertexPath, const GLchar* fragmentPat
         std::cout << "Shader Program linking failed\n" << infoLog << std::endl;
     }
 
+    // Get various attribute locations
+    glBindAttribLocation(ID, 0, "vsPos");
+    glBindAttribLocation(ID, 1, "vsNor");
+
     // Don't need these anymore
     glDeleteShader(vertex);
     glDeleteShader(fragment);
+}
+
+void ShaderProgram::Draw(Drawable& d) {
+    use();
+    GLenum error = glGetError();
+    if (error != GL_NO_ERROR) {
+        std::cerr << "OpenGL error0 " << error << ": " << std::endl;
+    }
+    // Position
+    if (d.bindBufPos()) {
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
+        glEnableVertexAttribArray(0);
+    }
+    error = glGetError();
+    if (error != GL_NO_ERROR) {
+        std::cerr << "OpenGL error1 " << error << ": " << std::endl;
+    }
+    // Normal
+    if (d.bindBufNor()) {
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
+        glEnableVertexAttribArray(1);
+    }
+    error = glGetError();
+    if (error != GL_NO_ERROR) {
+        std::cerr << "OpenGL error2 " << error << ": " << std::endl;
+    }
+    d.bindBufIdx();
+    error = glGetError();
+    if (error != GL_NO_ERROR) {
+        std::cerr << "OpenGL error3 " << error << ": " << std::endl;
+    }
+    glDrawElements(d.drawMode(), d.idxCount(), GL_UNSIGNED_INT, 0);
+    error = glGetError();
+    if (error != GL_NO_ERROR) {
+        std::cerr << "OpenGL error4 " << error << ": " << std::endl;
+    }
+    glDisableVertexAttribArray(0);
+    error = glGetError();
+    if (error != GL_NO_ERROR) {
+        std::cerr << "OpenGL error5 " << error << ": " << std::endl;
+    }
+    glDisableVertexAttribArray(1);
+    error = glGetError();
+    if (error != GL_NO_ERROR) {
+        std::cerr << "OpenGL error6 " << error << ": " << std::endl;
+    }
 }
 
 void ShaderProgram::setCameraViewProj(const char* uniformName, const glm::mat4& camViewProj) {

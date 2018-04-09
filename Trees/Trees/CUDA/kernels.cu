@@ -7,7 +7,7 @@
 #include <stdio.h>
 
 // Note: this implementation uses the "nearestBudIdx" field differently than the CPU implementation. This is because on the GPU, we don't
-// have access to the "branches" vector, so we jus tmake the bud idx the index in the one big array of buds, not the index in the vector
+// have access to the Tree's "branches" vector, so we just make the bud idx the index in the one big array of buds, not the index in the vector
 // of buds for a certain branch.
 __global__ void kernSetNearestBudForAttractorPoints(Bud* dev_buds, const int numBuds, AttractorPoint* dev_attrPts, const int numAttractorPoints, int* dev_mutex) {
     int index = threadIdx.x + (blockIdx.x * blockDim.x);

@@ -152,6 +152,7 @@
     <ClCompile Include="..\..\Libraries\glad\src\glad.c" />
     <ClCompile Include="..\..\Libraries\imgui\imgui_impl_glfw_glad.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="OpenGL\Drawable.cpp" />
     <ClCompile Include="OpenGL\ShaderProgram.cpp" />
     <ClCompile Include="Raytracing\Raytracing.cpp" />
     <ClCompile Include="Scene\AttractorPointCloud.cpp" />
@@ -178,6 +179,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CUDA\kernels.h" />
+    <ClInclude Include="OpenGL\Drawable.h" />
     <ClInclude Include="OpenGL\ShaderProgram.h" />
     <ClInclude Include="Raytracing\Raytracing.h" />
     <ClInclude Include="Scene\AttractorPointCloud.h" />

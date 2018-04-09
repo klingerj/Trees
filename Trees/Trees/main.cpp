@@ -100,7 +100,7 @@ int main() {
 
     // Create an initial AttractorPointCloud
     AttractorPointCloud attractorPointCloud = AttractorPointCloud();
-    attractorPointCloud.GeneratePoints(m, 1000000);
+    attractorPointCloud.GeneratePoints(m, 0);
 
     TreeApplication treeApp = TreeApplication();
 
@@ -380,7 +380,7 @@ int main() {
     glGenBuffers(1, &EBO5);
     glGenBuffers(1, &EBO6);
     glGenBuffers(1, &EBO7);
-
+    
     // VAO Binding
     glBindVertexArray(VAO);
 
@@ -476,10 +476,10 @@ int main() {
     elapsed_seconds = end - start;
     end_time = std::chrono::system_clock::to_time_t(end);
     std::cout << "Elapsed time for GL calls and ShaderPrograms and VAO/VBO/EBO Creation: " << elapsed_seconds.count() << "s\n";
-
+    
     // Mesh buffers
-    std::vector<unsigned int> idx = m.GetIndices();
-
+    /*std::vector<unsigned int> idx = m.GetIndices();
+    
     glBindVertexArray(VAO5);
     glBindBuffer(GL_ARRAY_BUFFER, VBO5);
     glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex) * m.GetVertices().size(), m.GetVertices().data(), GL_STATIC_DRAW);
@@ -492,7 +492,7 @@ int main() {
     glEnableVertexAttribArray(0);
     // Bind the 0th VBO. Set up attribute pointers to location 1 for normals.
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)sizeof(glm::vec3)); // skip the first Vertex.pos
-    glEnableVertexAttribArray(1);
+    glEnableVertexAttribArray(1);*/
 
 
 
@@ -506,6 +506,9 @@ int main() {
     #ifdef ENABLE_MULTISAMPLING
     glEnable(GL_MULTISAMPLE);
     #endif
+
+    // Test Drawable class
+    m.create();
 
     // Render loop
     while (!glfwWindowShouldClose(window)) {
@@ -546,11 +549,15 @@ int main() {
         /*sp3.setCameraViewProj("cameraViewProj", camera.GetViewProj());
         glBindVertexArray(VAO5);
         glDrawElements(GL_TRIANGLES, (GLsizei)idx.size(), GL_UNSIGNED_INT, 0);*/
+        // Test meshing drawing with drawable class
+        //glBindVertexArray(VAO5);
+        sp3.setCameraViewProj("cameraViewProj", camera.GetViewProj());
+        sp3.Draw(m);
 
         // draw leaves
-        glBindVertexArray(VAO6);
+        /*glBindVertexArray(VAO6);
         sp4.setCameraViewProj("cameraViewProj", camera.GetViewProj());
-        glDrawElements(GL_TRIANGLES, (GLsizei)leafIndices.size(), GL_UNSIGNED_INT, 0);
+        glDrawElements(GL_TRIANGLES, (GLsizei)leafIndices.size(), GL_UNSIGNED_INT, 0);*/
 
         uiMgr.RenderImgui();
         glfwSwapBuffers(window);
