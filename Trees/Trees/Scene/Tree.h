@@ -15,8 +15,9 @@
 /// User-defined Parameters for the growth simulation
 
 // For Space Colonization
+#define INTERNODE_SCALE 0.04f
 #define INITIAL_BRANCH_RADIUS 0.1f
-#define INITIAL_BUD_INTERNODE_RADIUS 0.05f
+#define INITIAL_BUD_INTERNODE_RADIUS INTERNODE_SCALE
 #define COS_THETA 0.70710678118f // cos(pi/4)
 #define COS_THETA_SMALL 0.86602540378f // cos(pi6)
 
@@ -25,7 +26,7 @@
 #define LAMBDA 0.51f
 
 // For Addition of new shoots
-#define OPTIMAL_GROWTH_DIR_WEIGHT 0.0f
+#define OPTIMAL_GROWTH_DIR_WEIGHT 0.4f
 #define TROPISM_DIR_WEIGHT 0.0f
 #define TROPISM_VECTOR glm::vec3(0.0f, -1.0f, 0.0f)
 
@@ -88,7 +89,6 @@ struct Bud {
         formedBranchIndex(i), internodeLength(l), branchRadius(br), numNearbyAttrPts(n), type(t), fate(f) {}
     Bud() : point(glm::vec3(0.0f)), naturalGrowthDir(glm::vec3(0.0f)), optimalGrowthDir(glm::vec3(0.0f)), environmentQuality(0.0f), accumEnvironmentQuality(0.0f), resourceBH(0.0f),
         formedBranchIndex(-1), internodeLength(0.0f), branchRadius(0.0f), numNearbyAttrPts(0), type(TERMINAL), fate(ABORT) {}
-
 };
 
 // Wraps up necessary information regarding a tree branch.
@@ -117,10 +117,11 @@ public:
 // Wrap up branches into one Tree class. This class also organizes the simulation functions
 class Tree {
 private:
-    std::vector<TreeBranch> branches;
+    std::vector<TreeBranch> branches; // all branches in the tree
+    bool didUpdate; // flag indicating whether or not the tree changed form (aka gained a bud) during the most recent iteration of growth
     inline void InitializeTree(const glm::vec3& p) { branches.emplace_back(TreeBranch(p, glm::vec3(0.0f, 1.0f, 0.0f), 0, -1)); } // Initialize a tree to be a single branch
 public:
-    Tree(const glm::vec3& p) {
+    Tree(const glm::vec3& p) : didUpdate(false) {
         branches.reserve(65536); // Reserve a lot so we don't have to resize often. This vector will definitely expand a lot. Also, the code will crash without this due to some contiguous memory issue, probably. TODO fix this?
         InitializeTree(p);
     }
@@ -136,7 +137,7 @@ public:
     void ComputeBHModelBasipetalPass();
     void ComputeResourceFlowRecursive(TreeBranch & branch, float resource);
     void ComputeBHModelAcropetalPass();
-    void AppendNewShoots();
+    void AppendNewShoots(int n);
     float ComputeBranchRadiiRecursive(TreeBranch & branch);
     void ComputeBranchRadii();
     void ResetState(std::vector<AttractorPoint>& attractorPoints);

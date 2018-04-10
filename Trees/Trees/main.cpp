@@ -100,7 +100,7 @@ int main() {
 
     // Create an initial AttractorPointCloud
     AttractorPointCloud attractorPointCloud = AttractorPointCloud();
-    attractorPointCloud.GeneratePoints(m, 0);
+    attractorPointCloud.GeneratePoints(m, 500000);
 
     TreeApplication treeApp = TreeApplication();
 
@@ -508,7 +508,7 @@ int main() {
     #endif
 
     // Test Drawable class
-    m.create();
+    //m.create();
 
     // Render loop
     while (!glfwWindowShouldClose(window)) {
@@ -551,8 +551,8 @@ int main() {
         glDrawElements(GL_TRIANGLES, (GLsizei)idx.size(), GL_UNSIGNED_INT, 0);*/
         // Test meshing drawing with drawable class
         //glBindVertexArray(VAO5);
-        sp3.setCameraViewProj("cameraViewProj", camera.GetViewProj());
-        sp3.Draw(m);
+        //sp3.setCameraViewProj("cameraViewProj", camera.GetViewProj());
+        //sp3.Draw(m);
 
         // draw leaves
         /*glBindVertexArray(VAO6);

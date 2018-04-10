@@ -63,14 +63,20 @@ void Tree::IterateGrowth(const int numIters, std::vector<AttractorPoint>& attrac
         std::cout << "Elapsed time for Computing BH Model (both passes): " << elapsed_seconds.count() << "s\n";
 
         start = std::chrono::system_clock::now();
-        AppendNewShoots();                         // 3. Add new shoots using the resource computed in previous step
+        AppendNewShoots(n);                         // 3. Add new shoots using the resource computed in previous step
         end = std::chrono::system_clock::now();
         elapsed_seconds = end - start;
         end_time = std::chrono::system_clock::to_time_t(end);
         std::cout << "Elapsed time for Appending New Shoots: " << elapsed_seconds.count() << "s\n";
 
+        std::cout << "didUpdate: " << didUpdate << std::endl;
+        if (!didUpdate) {
+            break;
+            std::cout << "didnt update" << std::endl;
+        } // If the tree didn't change, stop the algorithm early
+
         start = std::chrono::system_clock::now();
-        ResetState(attractorPoints);                              // 4. Prepare all data to be iterated over again, e.g. set accumQ / resrouceBH for all buds back to 0
+        ResetState(attractorPoints);               // 4. Prepare all data to be iterated over again, e.g. set accumQ / resourceBH for all buds back to 0
         end = std::chrono::system_clock::now();
         elapsed_seconds = end - start;
         end_time = std::chrono::system_clock::to_time_t(end);
@@ -262,7 +268,7 @@ void Tree::ComputeBHModelAcropetalPass() { // Recursive like basipetal pass, but
 }
 
 // Determine whether to grow new shoots and their length(s)
-void Tree::AppendNewShoots() {
+void Tree::AppendNewShoots(int n) {
     const unsigned int numBranches = (unsigned int)branches.size();
     for (unsigned int br = 0; br < numBranches; ++br) {
         TreeBranch& currentBranch = branches[br];
@@ -272,14 +278,16 @@ void Tree::AppendNewShoots() {
             Bud& currentBud = buds[bu];
             const int numMetamers = static_cast<int>(std::floor(currentBud.resourceBH));
             if (numMetamers > 0) {
-                const float metamerLength = currentBud.resourceBH / (float)numMetamers * INTERNODE_SCALE; // TODO remove fake scale *************
+                const float metamerLength = currentBud.resourceBH / (float)numMetamers * INTERNODE_SCALE;
                 switch (currentBud.type) {
                 case TERMINAL: {
+                    didUpdate = true;
                     currentBranch.AddAxillaryBuds(currentBud, numMetamers, metamerLength);
                     break;
                 }
                 case AXILLARY: {
                     if (currentBud.fate == DORMANT) {
+                        didUpdate = true;
                         TreeBranch newBranch = TreeBranch(currentBud.point, currentBud.naturalGrowthDir, branches[br].axisOrder + 1, br);
                         newBranch.AddAxillaryBuds(currentBud, numMetamers, metamerLength);
                         branches.emplace_back(newBranch);
@@ -288,6 +296,9 @@ void Tree::AppendNewShoots() {
                     }
                     break;
                 }
+                default:
+                    std::cout << "neither terminal nor axillary?" << std::endl;
+                    break;
                 }
             }
         }
@@ -330,6 +341,7 @@ void Tree::ComputeBranchRadii() {
 }
 
 void Tree::ResetState(std::vector<AttractorPoint>& attractorPoints) {
+    didUpdate = false;
     for (unsigned int br = 0; br < (unsigned int)branches.size(); ++br) {
         std::vector<Bud>& buds = branches[br].buds;
         for (int bu = 0; bu < buds.size(); ++bu) {
