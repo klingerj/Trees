@@ -4,7 +4,7 @@
 #include "imgui_draw.cpp"
 #include "imgui_internal.h"
 #include "imconfig.h"
-#include "Tree.h"
+#include "TreeApplication.h"
 
 void UIManager::ImguiSetup(GLFWwindow* window) {
     ImGui::CreateContext();
@@ -16,6 +16,10 @@ void UIManager::ImguiSetup(GLFWwindow* window) {
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 }
 
-void UIManager::HandleInput(TreeParameters& treeParams) {
-    ImGui::SliderFloat("BH Model Lambda (0 = Wide, 1 = Tall)", &treeParams.BHLambda, 0.0f, 1.0f);
+void UIManager::HandleInput(TreeApplication& treeApp) {
+    ImGui::SliderFloat("Maximum Branch Radius", &treeApp.GetTreeParameters().maximumBranchRadius, 0.0f, 100.0f);
+    ImGui::SliderInt("Maximum Branch Radius", &treeApp.GetTreeParameters().numSpaceColonizationIterations, 0, 10000);
+    if (ImGui::Button("Regrow Tree")) {
+        treeApp.GrowSelectedTreeIntoSelectedAttractorPointCloud();
+    }
 }

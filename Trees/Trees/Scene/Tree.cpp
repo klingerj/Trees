@@ -43,54 +43,72 @@ void TreeBranch::AddAxillaryBuds(const Bud& sourceBud, const int numBuds, const 
 
 /// Tree Class Functions
 
-void Tree::IterateGrowth(const int numIters, std::vector<AttractorPoint>& attractorPoints, bool useGPU) {
-    for (int n = 0; n < numIters; ++n) {
+void Tree::IterateGrowth(std::vector<AttractorPoint>& attractorPoints, const TreeParameters& treeParams, bool useGPU) {
+    for (int n = 0; n < treeParams.numSpaceColonizationIterations; ++n) {
+        #ifdef ENABLE_DEBUG_OUTPUT
         std::cout << "Iteration #: " << n << std::endl;
+        #endif
 
+        #ifdef ENABLE_DEBUG_OUTPUT
         auto start = std::chrono::system_clock::now();
+        #endif
         PerformSpaceColonization(attractorPoints, useGPU); // 1. Compute Q (presence of space/light) and optimal growth direction using space colonization
+        #ifdef ENABLE_DEBUG_OUTPUT
         auto end = std::chrono::system_clock::now();
         std::chrono::duration<double> elapsed_seconds = end - start;
         std::time_t end_time = std::chrono::system_clock::to_time_t(end);
         std::cout << "Elapsed time for Space Colonization: " << elapsed_seconds.count() << "s\n";
+        #endif
 
+        #ifdef ENABLE_DEBUG_OUTPUT
         start = std::chrono::system_clock::now();
+        #endif
         ComputeBHModelBasipetalPass();             // 2. Using BH Model, flow resource basipetally and then acropetally
         ComputeBHModelAcropetalPass();
+        #ifdef ENABLE_DEBUG_OUTPUT
         end = std::chrono::system_clock::now();
         elapsed_seconds = end - start;
         end_time = std::chrono::system_clock::to_time_t(end);
         std::cout << "Elapsed time for Computing BH Model (both passes): " << elapsed_seconds.count() << "s\n";
+        #endif
 
+        #ifdef ENABLE_DEBUG_OUTPUT
         start = std::chrono::system_clock::now();
+        #endif
         AppendNewShoots(n);                         // 3. Add new shoots using the resource computed in previous step
+        #ifdef ENABLE_DEBUG_OUTPUT
         end = std::chrono::system_clock::now();
         elapsed_seconds = end - start;
         end_time = std::chrono::system_clock::to_time_t(end);
         std::cout << "Elapsed time for Appending New Shoots: " << elapsed_seconds.count() << "s\n";
+        #endif
 
-        std::cout << "didUpdate: " << didUpdate << std::endl;
-        if (!didUpdate) {
-            break;
-            std::cout << "didnt update" << std::endl;
-        } // If the tree didn't change, stop the algorithm early
+        if (!didUpdate) {  break; } // If the tree didn't change, stop the algorithm early
 
+        #ifdef ENABLE_DEBUG_OUTPUT
         start = std::chrono::system_clock::now();
+        #endif
         ResetState(attractorPoints);               // 4. Prepare all data to be iterated over again, e.g. set accumQ / resourceBH for all buds back to 0
+        #ifdef ENABLE_DEBUG_OUTPUT
         end = std::chrono::system_clock::now();
         elapsed_seconds = end - start;
         end_time = std::chrono::system_clock::to_time_t(end);
         std::cout << "Elapsed time for State Resetting: " << elapsed_seconds.count() << "s\n\n";
+        #endif
 
-        if (attractorPoints.size() == 0) { break; }
+        if (attractorPoints.size() == 0) { break; } // No more attractor points to consider, so stop the algorithm
     }
 
+    #ifdef ENABLE_DEBUG_OUTPUT
     auto start = std::chrono::system_clock::now();
-    ComputeBranchRadii();
+    #endif
+    ComputeBranchRadii(treeParams);
+    #ifdef ENABLE_DEBUG_OUTPUT
     auto end = std::chrono::system_clock::now();
     std::chrono::duration<double> elapsed_seconds = end - start;
     std::time_t end_time = std::chrono::system_clock::to_time_t(end);
     std::cout << "Elapsed time for Computing Branch Radii: " << elapsed_seconds.count() << "s\n";
+    #endif
 }
 
 void Tree::PerformSpaceColonization(std::vector<AttractorPoint>& attractorPoints, bool useGPU) {
@@ -296,9 +314,6 @@ void Tree::AppendNewShoots(int n) {
                     }
                     break;
                 }
-                default:
-                    std::cout << "neither terminal nor axillary?" << std::endl;
-                    break;
                 }
             }
         }
@@ -306,7 +321,7 @@ void Tree::AppendNewShoots(int n) {
 }
 
 // Using the "pipe model" described in the paper, compute the radius of each branch
-float Tree::ComputeBranchRadiiRecursive(TreeBranch& branch) {
+float Tree::ComputeBranchRadiiRecursive(TreeBranch& branch, const TreeParameters& treeParams) {
     float branchRadius = MINIMUM_BRANCH_RADIUS;
     for (int bu = (int)branch.buds.size() - 1; bu >= 0; --bu) {
         Bud& currentBud = branch.buds[bu];
@@ -320,7 +335,7 @@ float Tree::ComputeBranchRadiiRecursive(TreeBranch& branch) {
                 // do nothing I think, only add at branching points
                 break;
             case FORMED_BRANCH:
-                branchRadius = std::pow(std::pow(branchRadius, PIPE_EXPONENT) + std::pow(ComputeBranchRadiiRecursive(branches[currentBud.formedBranchIndex]), PIPE_EXPONENT), 1.0f / PIPE_EXPONENT);
+                branchRadius = std::pow(std::pow(branchRadius, PIPE_EXPONENT) + std::pow(ComputeBranchRadiiRecursive(branches[currentBud.formedBranchIndex], treeParams), PIPE_EXPONENT), 1.0f / PIPE_EXPONENT);
                 break;
             case FORMED_FLOWER:
                 // don't change radius for now?
@@ -331,13 +346,13 @@ float Tree::ComputeBranchRadiiRecursive(TreeBranch& branch) {
             break;
         }
         }
-        currentBud.branchRadius = branchRadius;
+        currentBud.branchRadius = std::min(branchRadius, treeParams.maximumBranchRadius);
     }
     return branchRadius;
 }
 
-void Tree::ComputeBranchRadii() {
-    ComputeBranchRadiiRecursive(branches[0]); // ignore return value
+void Tree::ComputeBranchRadii(const TreeParameters& treeParams) {
+    ComputeBranchRadiiRecursive(branches[0], treeParams); // ignore return value
 }
 
 void Tree::ResetState(std::vector<AttractorPoint>& attractorPoints) {

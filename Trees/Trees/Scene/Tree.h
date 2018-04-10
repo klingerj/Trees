@@ -15,6 +15,7 @@
 /// User-defined Parameters for the growth simulation
 
 // For Space Colonization
+#define INITIAL_NUM_ITERATIONS 25
 #define INTERNODE_SCALE 0.04f
 #define INITIAL_BRANCH_RADIUS 0.1f
 #define INITIAL_BUD_INTERNODE_RADIUS INTERNODE_SCALE
@@ -33,6 +34,7 @@
 // For branch radius computation
 #define MINIMUM_BRANCH_RADIUS 0.1f // Radius of outermost branches
 #define PIPE_EXPONENT 2.8f // somewhere between 2 and 3 usually according to the paper
+#define MAXIMUM_BRANCH_RADIUS 0.05f
 
 /// Definition of structures
 
@@ -48,11 +50,13 @@ struct TreeParameters {
     glm::vec3 tropismVector;
     float minimumBranchRadius;
     float pipeModelExponent;
+    float maximumBranchRadius;
+    int numSpaceColonizationIterations;
 
     TreeParameters() :
         initialBranchRadius(INITIAL_BRANCH_RADIUS), initialBudInternodeRadius(INITIAL_BUD_INTERNODE_RADIUS), perceptionCosTheta(COS_THETA), perceptionCosThetaSmall(COS_THETA_SMALL),
         BHAlpha(ALPHA), BHLambda(LAMBDA), optimalGrowthDirWeight(OPTIMAL_GROWTH_DIR_WEIGHT), tropismDirWeight(TROPISM_DIR_WEIGHT), tropismVector(TROPISM_DIR_WEIGHT),
-        minimumBranchRadius(MINIMUM_BRANCH_RADIUS), pipeModelExponent(PIPE_EXPONENT) {}
+        minimumBranchRadius(MINIMUM_BRANCH_RADIUS), pipeModelExponent(PIPE_EXPONENT), numSpaceColonizationIterations(INITIAL_NUM_ITERATIONS) {}
 };
 
 enum BUD_FATE {
@@ -108,8 +112,8 @@ public:
         buds.reserve(8); // Reserve memory beforehand so we are less likely to have to resize the array later on. Performance test this.
         buds.emplace_back(p, glm::vec3(growthDirection), glm::vec3(0.0f), 0.0f, 0.0f, 0.0f, -1, INITIAL_BUD_INTERNODE_RADIUS, 0.0f, 0, TERMINAL, DORMANT); // add the terminal bud for this branch. Applies a prelim internode length (tweak, TODO)
     }
-    inline const std::vector<Bud>& GetBuds() const { return buds; }
-    inline int GetAxisOrder() const { return axisOrder; }
+    const std::vector<Bud>& GetBuds() const { return buds; }
+    int GetAxisOrder() const { return axisOrder; }
     // Adds a certain number of axillary buds to the list of buds, starting at the index just before the terminal bud
     void AddAxillaryBuds(const Bud& sourceBud, const int numBuds, const float internodeLength);
 };
@@ -119,16 +123,15 @@ class Tree {
 private:
     std::vector<TreeBranch> branches; // all branches in the tree
     bool didUpdate; // flag indicating whether or not the tree changed form (aka gained a bud) during the most recent iteration of growth
-    inline void InitializeTree(const glm::vec3& p) { branches.emplace_back(TreeBranch(p, glm::vec3(0.0f, 1.0f, 0.0f), 0, -1)); } // Initialize a tree to be a single branch
+    void InitializeTree(const glm::vec3& p) { branches.emplace_back(TreeBranch(p, glm::vec3(0.0f, 1.0f, 0.0f), 0, -1)); } // Initialize a tree to be a single branch
 public:
+    Tree() : Tree(glm::vec3(0.0f)) {}
     Tree(const glm::vec3& p) : didUpdate(false) {
         branches.reserve(65536); // Reserve a lot so we don't have to resize often. This vector will definitely expand a lot. Also, the code will crash without this due to some contiguous memory issue, probably. TODO fix this?
         InitializeTree(p);
     }
-    inline const std::vector<TreeBranch>& GetBranches() const {
-        return branches;
-    }
-    void IterateGrowth(const int numIters, std::vector<AttractorPoint>& attractorPoints, bool useGPU = false);
+    const std::vector<TreeBranch>& GetBranches() const { return branches; }
+    void IterateGrowth(std::vector<AttractorPoint>& attractorPoints, const TreeParameters& treeParams, bool useGPU = false);
     void PerformSpaceColonization(std::vector<AttractorPoint>& attractorPoints, bool useGPU);
     void PerformSpaceColonizationCPU(std::vector<AttractorPoint>& attractorPoints);
     void PerformSpaceColonizationGPU(std::vector<AttractorPoint>& attractorPoints);
@@ -138,7 +141,7 @@ public:
     void ComputeResourceFlowRecursive(TreeBranch & branch, float resource);
     void ComputeBHModelAcropetalPass();
     void AppendNewShoots(int n);
-    float ComputeBranchRadiiRecursive(TreeBranch & branch);
-    void ComputeBranchRadii();
+    float ComputeBranchRadiiRecursive(TreeBranch & branch, const TreeParameters& treeParams);
+    void ComputeBranchRadii(const TreeParameters& treeParams);
     void ResetState(std::vector<AttractorPoint>& attractorPoints);
 };

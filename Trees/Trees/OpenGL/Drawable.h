@@ -14,7 +14,7 @@ protected:
     bool norBound;
 public:
     Drawable() : count(-1), bufIdx(), bufPos(), bufNor(), idxBound(false), posBound(false), norBound(false) {}
-    inline int idxCount() { return count; }
+    int idxCount() { return count; }
     void destroy();
     bool bindBufIdx();
     bool bindBufPos();

@@ -30,11 +30,11 @@ public:
         rng(101); // Any seed
         dis = std::uniform_real_distribution<float>(-1.0f, 1.0f);
     }
-    inline const std::vector<AttractorPoint>& GetPoints() { return points; }
-    inline std::vector<AttractorPoint> GetPointsCopy() { return points; }
+    const std::vector<AttractorPoint>& GetPoints() { return points; }
+    std::vector<AttractorPoint> GetPointsCopy() { return points; }
     void GeneratePoints(unsigned int numPoints);
     void GeneratePoints(const Mesh& m, unsigned int numPoints);
-    inline void AddPoints(const std::vector<AttractorPoint>& p) {
+    void AddPoints(const std::vector<AttractorPoint>& p) {
         points.insert(points.begin(), p.begin(), p.end());
     }
     static AttractorPointCloud UnionAttractorPointClouds(const AttractorPointCloud& ap1, const AttractorPointCloud& ap2) {

@@ -17,7 +17,7 @@ public:
     // Read in and compile the vert/frag shaders
     ShaderProgram(const GLchar* vertexPath, const GLchar* fragmentPath); // Load + compile vert/frag shaders and required OpenGL calls
     ~ShaderProgram() {}
-    inline const void use() const { glUseProgram(ID); } // Use this ShaderProgram
+    const void use() const { glUseProgram(ID); } // Use this ShaderProgram
     void Draw(Drawable& d);
     void setCameraViewProj(const char* uniformName, const glm::mat4& camViewProj); // Set the camera VP Matrix uniform
 };

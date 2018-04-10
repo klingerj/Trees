@@ -98,30 +98,28 @@ int main() {
 
     // App creation and initialization
 
-    // Create an initial AttractorPointCloud
-    AttractorPointCloud attractorPointCloud = AttractorPointCloud();
-    attractorPointCloud.GeneratePoints(m, 500000);
-
     TreeApplication treeApp = TreeApplication();
-
+    treeApp.AddAttractorPointCloudToScene();
+    treeApp.GetSelectedAttractorPointCloud().GeneratePoints(m, 500000);
+    treeApp.AddTreeToScene();
 
 
 
 
     // new tree generation
-    Tree tree = Tree(glm::vec3(0.0f, 0.0f, 0.0f));
+    //Tree tree = Tree(glm::vec3(0.0f, 0.0f, 0.0f));
 
-    auto start = std::chrono::system_clock::now();
-    tree.IterateGrowth(NUM_ITERATIONS, attractorPointCloud.GetPointsCopy(), true);
+    /*auto start = std::chrono::system_clock::now();
+    tree.IterateGrowth(NUM_ITERATIONS, attractorPointCloud.GetPointsCopy(), treeApp.GetTreeParametersConst(), true);
     auto end = std::chrono::system_clock::now();
     std::chrono::duration<double> elapsed_seconds = end - start;
     std::time_t end_time = std::chrono::system_clock::to_time_t(end);
-    std::cout << "Total Elapsed time for Tree Generation: " << elapsed_seconds.count() << "s\n";
+    std::cout << "Total Elapsed time for Tree Generation: " << elapsed_seconds.count() << "s\n";*/
 
     // Code for GL stuff
 
     // Create indices for the attractor points
-    const unsigned int numPoints = (unsigned int)attractorPointCloud.GetPoints().size();
+    const unsigned int numPoints = (unsigned int)treeApp.GetSelectedAttractorPointCloud().GetPoints().size();
     std::vector<unsigned int> indices = std::vector<unsigned int>(numPoints);
     for (unsigned int i = 0; i < numPoints; ++i) {
         indices[i] = i;
@@ -133,7 +131,7 @@ int main() {
     std::vector<glm::vec3> cubeNormals;
     std::vector<unsigned int> cubeIndices;
 
-    start = std::chrono::system_clock::now();
+    //start = std::chrono::system_clock::now();
 
     ///Positions
     //Front face
@@ -208,16 +206,16 @@ int main() {
         cubeIndices.emplace_back(i * 4 + 3);
     }
 
-    end = std::chrono::system_clock::now();
+    /*end = std::chrono::system_clock::now();
     elapsed_seconds = end - start;
     end_time = std::chrono::system_clock::to_time_t(end);
-    std::cout << "Elapsed time for Cube Primitive Generation: " << elapsed_seconds.count() << "s\n";
+    std::cout << "Elapsed time for Cube Primitive Generation: " << elapsed_seconds.count() << "s\n";*/
 
     // End cube generation
 
     // GL code
 
-    start = std::chrono::system_clock::now();
+    //start = std::chrono::system_clock::now();
 
     // Vectors of stuff to render
     #define INTERNODE_CUBES
@@ -246,8 +244,8 @@ int main() {
     std::vector<unsigned int> leafIndices = std::vector<unsigned int>();
 
     // get the points vectors
-    const std::vector<TreeBranch>& branches = tree.GetBranches();
-    for (int br = 0; br < tree.GetBranches().size(); ++br) {
+    const std::vector<TreeBranch>& branches = treeApp.GetSelectedTreeConst().GetBranches();
+    for (int br = 0; br < treeApp.GetSelectedTreeConst().GetBranches().size(); ++br) {
         const std::vector<Bud>& buds = branches[br].GetBuds();
         #ifndef INTERNODE_CUBES
         const unsigned int idxOffset = budPoints.size();
@@ -341,12 +339,12 @@ int main() {
         budIndices.emplace_back(i);
     }
 
-    end = std::chrono::system_clock::now();
+    /*end = std::chrono::system_clock::now();
     elapsed_seconds = end - start;
     end_time = std::chrono::system_clock::to_time_t(end);
-    std::cout << "Elapsed time for Tree VBO Info Creation: " << elapsed_seconds.count() << "s\n";
+    std::cout << "Elapsed time for Tree VBO Info Creation: " << elapsed_seconds.count() << "s\n";*/
 
-    start = std::chrono::system_clock::now();
+    //start = std::chrono::system_clock::now();
 
     /// GL calls and drawing
 
@@ -390,7 +388,7 @@ int main() {
     std::vector<glm::vec3> tempPts = std::vector<glm::vec3>();
     tempPts.reserve(numPoints);
     for (unsigned int i = 0; i < numPoints; ++i) {
-        tempPts.emplace_back(attractorPointCloud.GetPoints()[i].point);
+        tempPts.emplace_back(treeApp.GetSelectedAttractorPointCloud().GetPoints()[i].point);
     }
     std::vector<unsigned int> tempPtsIdx = std::vector<unsigned int>();
     tempPtsIdx.reserve(numPoints);
@@ -472,10 +470,10 @@ int main() {
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
     glEnableVertexAttribArray(1);
 
-    end = std::chrono::system_clock::now();
+    /*end = std::chrono::system_clock::now();
     elapsed_seconds = end - start;
     end_time = std::chrono::system_clock::to_time_t(end);
-    std::cout << "Elapsed time for GL calls and ShaderPrograms and VAO/VBO/EBO Creation: " << elapsed_seconds.count() << "s\n";
+    std::cout << "Elapsed time for GL calls and ShaderPrograms and VAO/VBO/EBO Creation: " << elapsed_seconds.count() << "s\n";*/
     
     // Mesh buffers
     /*std::vector<unsigned int> idx = m.GetIndices();
@@ -514,7 +512,7 @@ int main() {
     while (!glfwWindowShouldClose(window)) {
         processInput(window);
         uiMgr.ImguiNewFrame();
-        uiMgr.HandleInput(treeApp.GetTreeParameters());
+        uiMgr.HandleInput(treeApp);
 
         glClearColor(0.1f, 0.2f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
