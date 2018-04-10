@@ -50,5 +50,5 @@ public:
 
     // Inherited Function(s)
     void create() override;
-    GLenum drawMode() override;
+    GLenum drawMode() override { return GL_TRIANGLES; }
 };

@@ -348,7 +348,7 @@ int main() {
 
     /// GL calls and drawing
 
-    ShaderProgram sp = ShaderProgram("Shaders/point-vert.vert", "Shaders/point-frag.frag");
+    ShaderProgram sp  = ShaderProgram("Shaders/point-vert.vert", "Shaders/point-frag.frag");
     ShaderProgram sp2 = ShaderProgram("Shaders/treeNode-vert.vert", "Shaders/treeNode-frag.frag");
     ShaderProgram sp3 = ShaderProgram("Shaders/mesh-vert.vert", "Shaders/mesh-frag.frag");
     ShaderProgram sp4 = ShaderProgram("Shaders/leaf-vert.vert", "Shaders/leaf-frag.frag");
@@ -518,10 +518,14 @@ int main() {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // Attractor Points
-        glBindVertexArray(VAO);
+        /*glBindVertexArray(VAO);
         sp.setCameraViewProj("cameraViewProj", camera.GetViewProj());
-        glDrawElements(GL_POINTS, (GLsizei) tempPtsIdx.size(), GL_UNSIGNED_INT, 0);
+        glDrawElements(GL_POINTS, (GLsizei) tempPtsIdx.size(), GL_UNSIGNED_INT, 0);*/
 
+        //Draw attractor points with drawable class
+        sp.setCameraViewProj("cameraViewProj", camera.GetViewProj());
+        treeApp.DrawAttractorPointClouds(sp);
+        
         // old cubes / new bud points
         glBindVertexArray(VAO2);
         sp2.setCameraViewProj("cameraViewProj", camera.GetViewProj());
@@ -543,12 +547,8 @@ int main() {
         // do nothing idk
         #endif
 
-        // Draw whatever mesh
-        /*sp3.setCameraViewProj("cameraViewProj", camera.GetViewProj());
-        glBindVertexArray(VAO5);
-        glDrawElements(GL_TRIANGLES, (GLsizei)idx.size(), GL_UNSIGNED_INT, 0);*/
         // Test meshing drawing with drawable class
-        //glBindVertexArray(VAO5);
+        //glBindVertexArray(VAO5); // not sure if this is necessary
         //sp3.setCameraViewProj("cameraViewProj", camera.GetViewProj());
         //sp3.Draw(m);
 
@@ -582,6 +582,9 @@ int main() {
     glDeleteBuffers(1, &EBO5);
     glDeleteBuffers(1, &EBO6);
     glDeleteBuffers(1, &EBO7);
+
+    m.destroy();
+    m2.destroy();
 
     glfwTerminate();
     return 0;

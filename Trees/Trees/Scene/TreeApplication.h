@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Globals.h"
+#include "../OpenGL/ShaderProgram.h"
 #include "Tree.h"
 #include "AttractorPointCloud.h"
 
@@ -20,6 +21,8 @@ public:
         std::vector<Tree> sceneTrees = std::vector<Tree>();
         std::vector<AttractorPointCloud> sceneAttractorPointClouds = std::vector<AttractorPointCloud>();
     }
+
+    // Scene Edition Functions
     void AddTreeToScene() {
         sceneTrees.emplace_back(Tree());
         currentlySelectedTreeIndex = sceneTrees.size() - 1;
@@ -28,6 +31,7 @@ public:
         sceneAttractorPointClouds.emplace_back(AttractorPointCloud());
         currentlySelectedAttractorPointCloudIndex = sceneAttractorPointClouds.size() - 1;
     }
+
     AttractorPointCloud& GetSelectedAttractorPointCloud() {
         if (currentlySelectedAttractorPointCloudIndex != -1) {
             return sceneAttractorPointClouds[currentlySelectedAttractorPointCloudIndex];
@@ -43,6 +47,7 @@ public:
             return sceneTrees[currentlySelectedTreeIndex];
         }
     }
+
     void GrowSelectedTreeIntoSelectedAttractorPointCloud() {
         if (currentlySelectedTreeIndex != -1 && currentlySelectedAttractorPointCloudIndex != -1) {
             #ifdef ENABLE_DEBUG_OUTPUT
@@ -59,4 +64,11 @@ public:
     }
     TreeParameters& GetTreeParameters() { return treeParameters; }
     const TreeParameters& GetTreeParametersConst() const { return treeParameters; }
+
+    // Drawing the scene
+    void DrawAttractorPointClouds(ShaderProgram& sp) {
+        for (int ap = 0; ap < sceneAttractorPointClouds.size(); ++ap) {
+            sp.Draw(sceneAttractorPointClouds[ap]);
+        }
+    }
 };

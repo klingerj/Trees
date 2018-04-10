@@ -7,6 +7,7 @@
 #include <ctime>
 #include <random>
 
+#include "../OpenGL/Drawable.h"
 #include "Mesh.h"
 
 struct AttractorPoint {
@@ -18,7 +19,7 @@ struct AttractorPoint {
     AttractorPoint(const glm::vec3& p) : point(p), nearestBudDist2(9999999.0f), nearestBudBranchIdx(-1), nearestBudIdx(-1) {}
 };
 
-class AttractorPointCloud {
+class AttractorPointCloud : public Drawable {
 protected:
     std::vector<AttractorPoint> points;
 private:
@@ -43,4 +44,8 @@ public:
         unionCloud.AddPoints(ap2.points);
         return unionCloud;
     }
+
+    // Inherited functions from Drawable
+    void create() override;
+    GLenum drawMode() { return GL_POINTS; }
 };

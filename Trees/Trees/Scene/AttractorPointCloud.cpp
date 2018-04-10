@@ -16,6 +16,7 @@ void AttractorPointCloud::GeneratePoints(unsigned int numPoints) {
     std::cout << "Elapsed time for Attractor Point Cloud Generation: " << elapsed_seconds.count() << "s\n";
     std::cout << "Number of Attractor Points Generated: " << points.size() << "\n\n";
     #endif
+    create();
 }
 
 void AttractorPointCloud::GeneratePoints(const Mesh& m, unsigned int numPoints) {
@@ -37,4 +38,25 @@ void AttractorPointCloud::GeneratePoints(const Mesh& m, unsigned int numPoints) 
     std::cout << "Elapsed time for Attractor Point Cloud Generation: " << elapsed_seconds.count() << "s\n";
     std::cout << "Number of Attractor Points Generated: " << points.size() << "\n\n";
     #endif
+    create();
+}
+
+void AttractorPointCloud::create() {
+    // Indices
+    genBufIdx();
+
+    // Create an indices vector
+    std::vector<unsigned int> indices = std::vector<unsigned int>();
+    for (int i = 0; i < points.size(); ++i) {
+        indices.emplace_back(i);
+    }
+
+    count = (int)indices.size();
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bufIdx);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * indices.size(), indices.data(), GL_STATIC_DRAW);
+
+    // Positions
+    genBufPos();
+    glBindBuffer(GL_ARRAY_BUFFER, bufPos);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * points.size(), points.data(), GL_STATIC_DRAW);
 }

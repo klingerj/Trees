@@ -18,7 +18,7 @@ void UIManager::ImguiSetup(GLFWwindow* window) {
 
 void UIManager::HandleInput(TreeApplication& treeApp) {
     ImGui::SliderFloat("Maximum Branch Radius", &treeApp.GetTreeParameters().maximumBranchRadius, 0.0f, 100.0f);
-    ImGui::SliderInt("Maximum Branch Radius", &treeApp.GetTreeParameters().numSpaceColonizationIterations, 0, 10000);
+    ImGui::SliderInt("Num Space Col Iterations", &treeApp.GetTreeParameters().numSpaceColonizationIterations, 0, 10000);
     if (ImGui::Button("Regrow Tree")) {
         treeApp.GrowSelectedTreeIntoSelectedAttractorPointCloud();
     }

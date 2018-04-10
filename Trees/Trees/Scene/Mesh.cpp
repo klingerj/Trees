@@ -125,7 +125,3 @@ void Mesh::create() {
     glBindBuffer(GL_ARRAY_BUFFER, bufNor);
     glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * normals.size(), normals.data(), GL_STATIC_DRAW);
 }
-
-GLenum Mesh::drawMode() {
-    return GL_TRIANGLES;
-}
