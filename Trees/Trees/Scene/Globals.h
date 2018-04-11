@@ -10,4 +10,4 @@
 
 #define EPSILON 0.00005f
 
-#define ENABLE_DEBUG_OUTPUT
+//#define ENABLE_DEBUG_OUTPUT

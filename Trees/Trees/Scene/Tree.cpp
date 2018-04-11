@@ -49,6 +49,7 @@ void Tree::IterateGrowth(std::vector<AttractorPoint>& attractorPoints, const Tre
     ResetState(attractorPoints);               // Prepare all data to be iterated over again, e.g. set accumQ / resourceBH for all buds back to 0
     
     for (int n = 0; n < treeParams.numSpaceColonizationIterations; ++n) {
+        didUpdate = false;
         #ifdef ENABLE_DEBUG_OUTPUT
         std::cout << "Iteration #: " << n << std::endl;
         #endif
@@ -79,16 +80,14 @@ void Tree::IterateGrowth(std::vector<AttractorPoint>& attractorPoints, const Tre
         #ifdef ENABLE_DEBUG_OUTPUT
         start = std::chrono::system_clock::now();
         #endif
-        AppendNewShoots(n);                         // 3. Add new shoots using the resource computed in previous step
+        AppendNewShoots(n, treeParams);                         // 3. Add new shoots using the resource computed in previous step
         #ifdef ENABLE_DEBUG_OUTPUT
         end = std::chrono::system_clock::now();
         elapsed_seconds = end - start;
         end_time = std::chrono::system_clock::to_time_t(end);
         std::cout << "Elapsed time for Appending New Shoots: " << elapsed_seconds.count() << "s\n";
         #endif
-
-        if (!didUpdate) {  break; } // If the tree didn't change, stop the algorithm early
-
+        
         #ifdef ENABLE_DEBUG_OUTPUT
         start = std::chrono::system_clock::now();
         #endif
@@ -100,7 +99,7 @@ void Tree::IterateGrowth(std::vector<AttractorPoint>& attractorPoints, const Tre
         std::cout << "Elapsed time for State Resetting: " << elapsed_seconds.count() << "s\n\n";
         #endif
 
-        if (attractorPoints.size() == 0) { break; } // No more attractor points to consider, so stop the algorithm
+        if (!didUpdate || attractorPoints.size() == 0) { break; } // No more attractor points to consider, so stop the algorithm
     }
 
     #ifdef ENABLE_DEBUG_OUTPUT
@@ -188,7 +187,7 @@ void Tree::PerformSpaceColonizationCPU(std::vector<AttractorPoint>& attractorPoi
 
 void Tree::PerformSpaceColonizationGPU(std::vector<AttractorPoint>& attractorPoints) {
     // Assemble array of buds
-    std::vector<Bud> buds = std::vector<Bud>();
+    std::vector<Bud> buds = std::vector<Bud>(); // TODO replace this vector
     for (unsigned int br = 0; br < (unsigned int)branches.size(); ++br) {
         const std::vector<Bud> branchBuds = branches[br].GetBuds();
         for (unsigned int bu = 0; bu < branchBuds.size(); ++bu) {
@@ -290,7 +289,7 @@ void Tree::ComputeBHModelAcropetalPass() { // Recursive like basipetal pass, but
 }
 
 // Determine whether to grow new shoots and their length(s)
-void Tree::AppendNewShoots(int n) {
+void Tree::AppendNewShoots(int n, const TreeParameters& treeParams) {
     const unsigned int numBranches = (unsigned int)branches.size();
     for (unsigned int br = 0; br < numBranches; ++br) {
         TreeBranch& currentBranch = branches[br];
@@ -300,7 +299,7 @@ void Tree::AppendNewShoots(int n) {
             Bud& currentBud = buds[bu];
             const int numMetamers = static_cast<int>(std::floor(currentBud.resourceBH));
             if (numMetamers > 0) {
-                const float metamerLength = currentBud.resourceBH / (float)numMetamers * INTERNODE_SCALE;
+                const float metamerLength = currentBud.resourceBH / (float)numMetamers * treeParams.internodeScale;
                 switch (currentBud.type) {
                 case TERMINAL: {
                     didUpdate = true;
@@ -322,12 +321,11 @@ void Tree::AppendNewShoots(int n) {
             }
         }
     }
-    std::cout << "didUpdate: " << didUpdate << std::endl;
 }
 
 // Using the "pipe model" described in the paper, compute the radius of each branch
 float Tree::ComputeBranchRadiiRecursive(TreeBranch& branch, const TreeParameters& treeParams) {
-    float branchRadius = MINIMUM_BRANCH_RADIUS;
+    float branchRadius = treeParams.minimumBranchRadius;
     for (int bu = (int)branch.buds.size() - 1; bu >= 0; --bu) {
         Bud& currentBud = branch.buds[bu];
         switch (currentBud.type) {
@@ -361,7 +359,6 @@ void Tree::ComputeBranchRadii(const TreeParameters& treeParams) {
 }
 
 void Tree::ResetState(std::vector<AttractorPoint>& attractorPoints) {
-    didUpdate = false;
     for (unsigned int br = 0; br < (unsigned int)branches.size(); ++br) {
         std::vector<Bud>& buds = branches[br].buds;
         for (int bu = 0; bu < buds.size(); ++bu) {

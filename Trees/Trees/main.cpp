@@ -32,7 +32,7 @@ void mouse_click_callback(GLFWwindow* window, int button, int action, int mods) 
     if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
         double xpos, ypos;
         glfwGetCursorPos(window, &xpos, &ypos);
-        std::cout << "Cursor Position at (" << xpos << " : " << ypos << std::endl;
+        std::cout << "Cursor Position at (" << xpos << ", " << ypos << ")" << std::endl;
     }
 }
 
@@ -61,12 +61,6 @@ void processInput(GLFWwindow *window) {
 }
 
 int main() {
-    // Test Mesh Loading
-    /*Mesh m = Mesh();
-    m.LoadFromFile("OBJs/helixRot.obj");
-    Mesh m2 = Mesh();
-    m2.LoadFromFile("OBJs/leaf.obj");*/
-
     // GLFW Window Setup
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -125,7 +119,7 @@ int main() {
         uiMgr.ImguiNewFrame();
         uiMgr.HandleInput(treeApp);
 
-        glClearColor(0.1f, 0.2f, 0.3f, 1.0f);
+        glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         //Draw attractor points with drawable class

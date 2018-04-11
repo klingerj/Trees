@@ -15,9 +15,8 @@
 
 // For Space Colonization
 #define INITIAL_NUM_ITERATIONS 25
-#define INTERNODE_SCALE 0.04f
-#define INITIAL_BRANCH_RADIUS 0.1f
-#define INITIAL_BUD_INTERNODE_RADIUS INTERNODE_SCALE
+#define INITIAL_INTERNODE_SCALE 0.04f
+#define INITIAL_BUD_INTERNODE_RADIUS INITIAL_INTERNODE_SCALE
 #define COS_THETA 0.70710678118f // cos(pi/4)
 #define COS_THETA_SMALL 0.86602540378f // cos(pi6)
 
@@ -40,8 +39,7 @@
 /// Definition of structures
 
 struct TreeParameters {
-    float initialBranchRadius;
-    float initialBudInternodeRadius;
+    float internodeScale;
     float perceptionCosTheta;
     float perceptionCosThetaSmall;
     float BHAlpha;
@@ -54,12 +52,13 @@ struct TreeParameters {
     float maximumBranchRadius;
     int numSpaceColonizationIterations;
     int numAttractorPointsToGenerate;
+    bool enableDebugOutput;
 
     TreeParameters() :
-        initialBranchRadius(INITIAL_BRANCH_RADIUS), initialBudInternodeRadius(INITIAL_BUD_INTERNODE_RADIUS), perceptionCosTheta(COS_THETA), perceptionCosThetaSmall(COS_THETA_SMALL),
-        BHAlpha(ALPHA), BHLambda(LAMBDA), optimalGrowthDirWeight(OPTIMAL_GROWTH_DIR_WEIGHT), tropismDirWeight(TROPISM_DIR_WEIGHT), tropismVector(TROPISM_DIR_WEIGHT),
-        minimumBranchRadius(MINIMUM_BRANCH_RADIUS), pipeModelExponent(PIPE_EXPONENT), maximumBranchRadius(MAXIMUM_BRANCH_RADIUS), numSpaceColonizationIterations(INITIAL_NUM_ITERATIONS),
-        numAttractorPointsToGenerate(INITIAL_NUM_ATTR_PTS) {}
+        internodeScale(INITIAL_INTERNODE_SCALE), perceptionCosTheta(COS_THETA),
+        perceptionCosThetaSmall(COS_THETA_SMALL), BHAlpha(ALPHA), BHLambda(LAMBDA), optimalGrowthDirWeight(OPTIMAL_GROWTH_DIR_WEIGHT), tropismDirWeight(TROPISM_DIR_WEIGHT),
+        tropismVector(TROPISM_DIR_WEIGHT), minimumBranchRadius(MINIMUM_BRANCH_RADIUS), pipeModelExponent(PIPE_EXPONENT), maximumBranchRadius(MAXIMUM_BRANCH_RADIUS),
+        numSpaceColonizationIterations(INITIAL_NUM_ITERATIONS), numAttractorPointsToGenerate(INITIAL_NUM_ATTR_PTS), enableDebugOutput(true) {}
 };
 
 enum BUD_FATE {
@@ -82,7 +81,7 @@ struct Bud {
     float environmentQuality; // In space colonization, this is a binary 0 or 1
     float accumEnvironmentQuality; // Using Borchert-Honda Model, indicates the accumulated amount of resources reaching this bud
     float resourceBH; // amount of available resource reaching this Bud using the BH Model
-    int formedBranchIndex; // If this bud's fate is FORMED_BRANCH, this is the index in the Tree's list of branches of that formed branch. -1 o.w.
+    int formedBranchIndex; // If this bud's fate is FORMED_BRANCH, this is the index of that formed branch into the Tree's list of branches. -1 o.w.
     float internodeLength;
     float branchRadius;
     int numNearbyAttrPts;
@@ -104,14 +103,13 @@ class TreeBranch {
 private:
     std::vector<Bud> buds; // List of buds. Last bud is always the terminal bud.
     glm::vec3 growthDirection; // World space direction in which this branch is oriented
-    float radius; // Branch radius. Computed using pipe model
     unsigned int axisOrder; // Order n (0, 1, ..., n) of this axis. Original trunk of a tree is 0, each branch supported by this branch has order 1, etc
     int prevBranchIndex; // Index of the branch supporting this one in the 
 
 public:
     TreeBranch() : TreeBranch(glm::vec3(0.0f), glm::vec3(0.0f), 0, -1) {}
     TreeBranch(const glm::vec3& p, const glm::vec3& d, int ao, int bi) :
-        growthDirection(d), radius(INITIAL_BRANCH_RADIUS), axisOrder(ao), prevBranchIndex(bi) {
+        growthDirection(d), axisOrder(ao), prevBranchIndex(bi) {
         buds = std::vector<Bud>();
         buds.emplace_back(p, glm::vec3(growthDirection), glm::vec3(0.0f), 0.0f, 0.0f, 0.0f, -1, INITIAL_BUD_INTERNODE_RADIUS, 0.0f, 0, TERMINAL, DORMANT); // add the terminal bud for this branch. Applies a prelim internode length (tweak, TODO)
     }
@@ -127,7 +125,7 @@ private:
     std::vector<TreeBranch> branches; // all branches in the tree
     bool didUpdate; // flag indicating whether or not the tree changed form (aka gained a bud) during the most recent iteration of growth
     bool hasBeenCreated;
-    void InitializeTree(const glm::vec3& p) { // Initialize a tree to be a single branch
+    void InitializeTree(glm::vec3 p) { // Initialize a tree to be a single branch
         branches.clear();
         branches.reserve(65536);
         branches.emplace_back(TreeBranch(p, glm::vec3(0.0f, 1.0f, 0.0f), 0, -1));
@@ -184,7 +182,7 @@ public:
     void ComputeResourceFlowRecursive(TreeBranch& branch, float resource);
     void ComputeBHModelAcropetalPass();
 
-    void AppendNewShoots(int n);
+    void AppendNewShoots(int n, const TreeParameters& treeParams);
 
     float ComputeBranchRadiiRecursive(TreeBranch& branch, const TreeParameters& treeParams);
     void ComputeBranchRadii(const TreeParameters& treeParams);

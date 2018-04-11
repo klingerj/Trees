@@ -21,8 +21,9 @@ void TreeApplication::RegrowSelectedTreeInSelectedAttractorPointCloud() {
         #ifdef ENABLE_DEBUG_OUTPUT
         auto start = std::chrono::system_clock::now();
         #endif
-        sceneTrees[currentlySelectedTreeIndex].ResetTree();
-        sceneTrees[currentlySelectedTreeIndex].IterateGrowth(sceneAttractorPointClouds[currentlySelectedAttractorPointCloudIndex].GetPointsCopy(), treeParameters, true);
+        Tree& currentTree = sceneTrees[currentlySelectedTreeIndex];
+        currentTree.ResetTree();
+        currentTree.IterateGrowth(sceneAttractorPointClouds[currentlySelectedAttractorPointCloudIndex].GetPointsCopy(), treeParameters, true);
         #ifdef ENABLE_DEBUG_OUTPUT
         auto end = std::chrono::system_clock::now();
         std::chrono::duration<double> elapsed_seconds = end - start;
