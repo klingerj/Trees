@@ -27,7 +27,7 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     camera.SetAspect((float)width / height);
 }
 
-// Based on https://stackoverflow.com/questions/45130391/opengl-get-cursor-coordinate-on-mouse-click-in-c
+// Based on https://stackoverflow.com/questions/45130391/opengl-get-cursor-coordinate-on-mouse-click-in-c and http://www.glfw.org/docs/latest/input_guide.html
 void mouse_click_callback(GLFWwindow* window, int button, int action, int mods) {
     if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
         double xpos, ypos;
@@ -85,10 +85,12 @@ int main() {
     }
 
     glViewport(0, 0, VIEWPORT_WIDTH_INITIAL, VIEWPORT_HEIGHT_INITIAL);
-    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-    glfwSetMouseButtonCallback(window, mouse_click_callback);
 
     UIManager uiMgr = UIManager(window);
+
+    // Set callbacks - must happen after setting up Imgui for some reason
+    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+    glfwSetMouseButtonCallback(window, mouse_click_callback);
 
     // App creation and initialization
 
