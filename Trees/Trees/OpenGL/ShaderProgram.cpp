@@ -86,50 +86,26 @@ ShaderProgram::ShaderProgram(const GLchar* vertexPath, const GLchar* fragmentPat
 
 void ShaderProgram::Draw(Drawable& d) {
     use();
-    GLenum error = glGetError();
-    if (error != GL_NO_ERROR) {
-        std::cerr << "OpenGL error0 " << error << ": " << std::endl;
-    }
+
     // Position
     int attrPos = glGetAttribLocation(ID, "vsPos");
     if (attrPos != -1 && d.bindBufPos()) {
         glVertexAttribPointer(attrPos, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
         glEnableVertexAttribArray(attrPos);
     }
-    error = glGetError();
-    if (error != GL_NO_ERROR) {
-        std::cerr << "OpenGL error1 " << error << ": " << std::endl;
-    }
+
     // Normal
     int attrNor = glGetAttribLocation(ID, "vsNor");
     if (attrNor != -1 && d.bindBufNor()) {
         glVertexAttribPointer(attrNor, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
         glEnableVertexAttribArray(attrNor);
     }
-    error = glGetError();
-    if (error != GL_NO_ERROR) {
-        std::cerr << "OpenGL error2 " << error << ": " << std::endl;
-    }
+
     d.bindBufIdx();
-    error = glGetError();
-    if (error != GL_NO_ERROR) {
-        std::cerr << "OpenGL error3 " << error << ": " << std::endl;
-    }
     glDrawElements(d.drawMode(), d.idxCount(), GL_UNSIGNED_INT, 0);
-    error = glGetError();
-    if (error != GL_NO_ERROR) {
-        std::cerr << "OpenGL error4 " << error << ": " << std::endl;
-    }
+
     if (attrPos != -1) { glDisableVertexAttribArray(0); }
-    error = glGetError();
-    if (error != GL_NO_ERROR) {
-        std::cerr << "OpenGL error5 " << error << ": " << std::endl;
-    }
     if (attrNor != -1) { glDisableVertexAttribArray(1); }
-    error = glGetError();
-    if (error != GL_NO_ERROR) {
-        std::cerr << "OpenGL error6 " << error << ": " << std::endl;
-    }
 }
 
 void ShaderProgram::setCameraViewProj(const char* uniformName, const glm::mat4& camViewProj) {

@@ -21,12 +21,12 @@ Camera camera = Camera(glm::vec3(0.0f, 1.63f, 0.0f), 0.7853981634f, // 45 degree
 (float)VIEWPORT_WIDTH_INITIAL / VIEWPORT_HEIGHT_INITIAL, 0.01f, 2000.0f, 0.0f, -31.74f, 5.4f);
 const float camMoveSensitivity = 0.03f;
 
-
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     glViewport(0, 0, width, height);
     camera.SetAspect((float)width / height);
 }
 
+// Mouse click
 // Based on https://stackoverflow.com/questions/45130391/opengl-get-cursor-coordinate-on-mouse-click-in-c and http://www.glfw.org/docs/latest/input_guide.html
 void mouse_click_callback(GLFWwindow* window, int button, int action, int mods) {
     if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
@@ -88,12 +88,11 @@ int main() {
 
     UIManager uiMgr = UIManager(window);
 
-    // Set callbacks - must happen after setting up Imgui for some reason
+    // Set window callbacks - must happen after setting up Imgui for some reason
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     glfwSetMouseButtonCallback(window, mouse_click_callback);
 
     // App creation and initialization
-
     TreeApplication treeApp = TreeApplication();
     treeApp.AddTreeToScene();
 
@@ -124,7 +123,7 @@ int main() {
         glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        //Draw attractor points with drawable class
+        // Draw scene
         sp.setCameraViewProj("cameraViewProj", camera.GetViewProj());
         treeApp.DrawAttractorPointClouds(sp);
         
