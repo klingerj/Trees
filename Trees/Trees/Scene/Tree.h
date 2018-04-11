@@ -1,12 +1,11 @@
 #pragma once
 
-
-#include "glm\glm.hpp"
+#include "glm/glm.hpp"
 #include "glm/gtx/norm.hpp"
 
 #include "Globals.h"
 #include "AttractorPointCloud.h"
-#include "..\CUDA\kernels.h"
+#include "../CUDA/kernels.h"
 
 #include <vector>
 #include <chrono>
@@ -56,7 +55,7 @@ struct TreeParameters {
     TreeParameters() :
         initialBranchRadius(INITIAL_BRANCH_RADIUS), initialBudInternodeRadius(INITIAL_BUD_INTERNODE_RADIUS), perceptionCosTheta(COS_THETA), perceptionCosThetaSmall(COS_THETA_SMALL),
         BHAlpha(ALPHA), BHLambda(LAMBDA), optimalGrowthDirWeight(OPTIMAL_GROWTH_DIR_WEIGHT), tropismDirWeight(TROPISM_DIR_WEIGHT), tropismVector(TROPISM_DIR_WEIGHT),
-        minimumBranchRadius(MINIMUM_BRANCH_RADIUS), pipeModelExponent(PIPE_EXPONENT), numSpaceColonizationIterations(INITIAL_NUM_ITERATIONS) {}
+        minimumBranchRadius(MINIMUM_BRANCH_RADIUS), pipeModelExponent(PIPE_EXPONENT), maximumBranchRadius(MAXIMUM_BRANCH_RADIUS), numSpaceColonizationIterations(INITIAL_NUM_ITERATIONS) {}
 };
 
 enum BUD_FATE {
@@ -106,10 +105,10 @@ private:
     int prevBranchIndex; // Index of the branch supporting this one in the 
 
 public:
+    TreeBranch() : TreeBranch(glm::vec3(0.0f), glm::vec3(0.0f), 0, -1) {}
     TreeBranch(const glm::vec3& p, const glm::vec3& d, int ao, int bi) :
         growthDirection(d), radius(INITIAL_BRANCH_RADIUS), axisOrder(ao), prevBranchIndex(bi) {
         buds = std::vector<Bud>();
-        buds.reserve(8); // Reserve memory beforehand so we are less likely to have to resize the array later on. Performance test this.
         buds.emplace_back(p, glm::vec3(growthDirection), glm::vec3(0.0f), 0.0f, 0.0f, 0.0f, -1, INITIAL_BUD_INTERNODE_RADIUS, 0.0f, 0, TERMINAL, DORMANT); // add the terminal bud for this branch. Applies a prelim internode length (tweak, TODO)
     }
     const std::vector<Bud>& GetBuds() const { return buds; }
@@ -123,25 +122,76 @@ class Tree {
 private:
     std::vector<TreeBranch> branches; // all branches in the tree
     bool didUpdate; // flag indicating whether or not the tree changed form (aka gained a bud) during the most recent iteration of growth
-    void InitializeTree(const glm::vec3& p) { branches.emplace_back(TreeBranch(p, glm::vec3(0.0f, 1.0f, 0.0f), 0, -1)); } // Initialize a tree to be a single branch
+    bool hasBeenCreated;
+    void InitializeTree(const glm::vec3& p) { // Initialize a tree to be a single branch
+        branches.clear();
+        branches.reserve(65536);
+        branches.emplace_back(TreeBranch(p, glm::vec3(0.0f, 1.0f, 0.0f), 0, -1));
+    } 
+
+    // Internally stored meshes for drawing
+
+    // Loaded meshes:
+    Mesh branchMesh; // Mesh representing individual branches
+    Mesh leafMesh;   // Mesh representing individual leaves
+
+    // Exported meshes
+    Mesh treeMesh;   // Mesh containing all branches
+    Mesh leavesMesh; // Mesh containing all leaves
+
+    glm::vec3 branchColor;
+    glm::vec3 leafColor;
+
 public:
     Tree() : Tree(glm::vec3(0.0f)) {}
-    Tree(const glm::vec3& p) : didUpdate(false) {
-        branches.reserve(65536); // Reserve a lot so we don't have to resize often. This vector will definitely expand a lot. Also, the code will crash without this due to some contiguous memory issue, probably. TODO fix this?
+    Tree(const glm::vec3& p) : didUpdate(false), hasBeenCreated(false), branchColor(glm::vec3(0.467f, 0.41f, 0.25f)), leafColor(glm::vec3(0.2f, 0.4f, 0.2f)) {
+        branches = std::vector<TreeBranch>();
         InitializeTree(p);
+        branchMesh = Mesh();
+        leafMesh = Mesh();
+        branchMesh.LoadFromFile("OBJs/cylinderBranch.obj");
+        leafMesh.LoadFromFile("OBJs/leaf.obj");
     }
+    void ResetTree() {
+        didUpdate = false;
+        hasBeenCreated = false;
+        InitializeTree(branches[0].GetBuds()[0].point); // Reset tree to its starting bud's point
+    }
+    void DestroyMeshes() {
+        branchMesh.destroy();
+        leafMesh.destroy();
+        treeMesh.destroy();
+        leavesMesh.destroy();
+    }
+
+    const glm::vec3& GetBranchColor() const { return branchColor; }
+    const glm::vec3& GetLeafColor() const { return leafColor; }
+
+    // Tree Growth Functions (grouped by association)
     const std::vector<TreeBranch>& GetBranches() const { return branches; }
     void IterateGrowth(std::vector<AttractorPoint>& attractorPoints, const TreeParameters& treeParams, bool useGPU = false);
     void PerformSpaceColonization(std::vector<AttractorPoint>& attractorPoints, bool useGPU);
     void PerformSpaceColonizationCPU(std::vector<AttractorPoint>& attractorPoints);
     void PerformSpaceColonizationGPU(std::vector<AttractorPoint>& attractorPoints);
     void RemoveAttractorPoints(std::vector<AttractorPoint>& attractorPoints);
-    float ComputeQAccumRecursive(TreeBranch & branch);
+
+    float ComputeQAccumRecursive(TreeBranch& branch);
     void ComputeBHModelBasipetalPass();
-    void ComputeResourceFlowRecursive(TreeBranch & branch, float resource);
+    void ComputeResourceFlowRecursive(TreeBranch& branch, float resource);
     void ComputeBHModelAcropetalPass();
+
     void AppendNewShoots(int n);
-    float ComputeBranchRadiiRecursive(TreeBranch & branch, const TreeParameters& treeParams);
+
+    float ComputeBranchRadiiRecursive(TreeBranch& branch, const TreeParameters& treeParams);
     void ComputeBranchRadii(const TreeParameters& treeParams);
-    void ResetState(std::vector<AttractorPoint>& attractorPoints);
+
+    void ResetState(std::vector<AttractorPoint>& attractorPoints); // Reset the state of each bud in the tree during the iterative algorithm
+
+    // Mesh handling
+    void LoadBranchMesh(const char* filepath) { branchMesh.LoadFromFile(filepath); }
+    void LoadLeafMesh  (const char* filepath) { leafMesh.LoadFromFile(filepath);   }
+    Mesh& GetTreeMesh() { return treeMesh; }
+    Mesh& GetLeavesMesh() { return leavesMesh; }
+    void create(); // Assembles a mesh unioning all branches and a mesh unioning all leaves. Calls create() on each.
+    bool HasBeenCreated() const { return hasBeenCreated; }
 };

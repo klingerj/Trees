@@ -1,12 +1,12 @@
 #include "Globals.h"
 #include "AttractorPointCloud.h"
 
-void AttractorPointCloud::GeneratePoints(unsigned int numPoints) {
+void AttractorPointCloud::GeneratePointsInUnitCube(unsigned int numPoints) {
     #ifdef ENABLE_DEBUG_OUTPUT
     auto start = std::chrono::system_clock::now();
     #endif
     for (unsigned int i = 0; i < numPoints; ++i) {
-        const glm::vec3 p = glm::vec3(dis(rng) * 2.0f, dis(rng) * 2.0f, dis(rng) * 4.0f);
+        const glm::vec3 p = glm::vec3(dis(rng), dis(rng), dis(rng));
         points.emplace_back(AttractorPoint(points[i]));
     }
     #ifdef ENABLE_DEBUG_OUTPUT
@@ -19,15 +19,16 @@ void AttractorPointCloud::GeneratePoints(unsigned int numPoints) {
     create();
 }
 
-void AttractorPointCloud::GeneratePoints(const Mesh& m, unsigned int numPoints) {
+void AttractorPointCloud::GeneratePoints(unsigned int numPoints) {
     #ifdef ENABLE_DEBUG_OUTPUT
     auto start = std::chrono::system_clock::now();
     #endif
+    boundingMesh.LoadFromFile("OBJs/helixRot.obj");
     for (unsigned int i = 0; i < numPoints; ++i) {
         const glm::vec3 p = glm::vec3(dis(rng) * 2.0f, dis(rng) * 2.0f, dis(rng) * 4.0f);
 
         // Intersect with mesh
-        if (m.Contains(p)) {
+        if (boundingMesh.Contains(p)) {
             points.emplace_back(AttractorPoint(p));
         }
     }

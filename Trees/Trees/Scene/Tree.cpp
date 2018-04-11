@@ -1,4 +1,5 @@
 #include "Tree.h"
+#include "glm/gtc/matrix_transform.hpp"
 #include <iostream>
 
 /// TreeBranch Class Functions
@@ -44,6 +45,9 @@ void TreeBranch::AddAxillaryBuds(const Bud& sourceBud, const int numBuds, const 
 /// Tree Class Functions
 
 void Tree::IterateGrowth(std::vector<AttractorPoint>& attractorPoints, const TreeParameters& treeParams, bool useGPU) {
+    
+    ResetState(attractorPoints);               // Prepare all data to be iterated over again, e.g. set accumQ / resourceBH for all buds back to 0
+    
     for (int n = 0; n < treeParams.numSpaceColonizationIterations; ++n) {
         #ifdef ENABLE_DEBUG_OUTPUT
         std::cout << "Iteration #: " << n << std::endl;
@@ -186,23 +190,23 @@ void Tree::PerformSpaceColonizationGPU(std::vector<AttractorPoint>& attractorPoi
     // Assemble array of buds
     std::vector<Bud> buds = std::vector<Bud>();
     for (unsigned int br = 0; br < (unsigned int)branches.size(); ++br) {
-    const std::vector<Bud> branchBuds = branches[br].GetBuds();
-    for (unsigned int bu = 0; bu < branchBuds.size(); ++bu) {
-    buds.emplace_back(branchBuds[bu]);
-    }
+        const std::vector<Bud> branchBuds = branches[br].GetBuds();
+        for (unsigned int bu = 0; bu < branchBuds.size(); ++bu) {
+            buds.emplace_back(branchBuds[bu]);
+        }
     }
 
     Bud* budArray = new Bud[buds.size()];
     for (int i = 0; i < buds.size(); ++i) {
-    budArray[i] = buds[i];
+        budArray[i] = buds[i];
     }
     TreeApp::PerformSpaceColonizationParallel(budArray, (int)buds.size(), attractorPoints.data(), (int)attractorPoints.size());
 
     // Copy bud info back to the tree
     int budCounter = 0;
     for (unsigned int br = 0; br < (unsigned int)branches.size(); ++br) {
-    std::vector<Bud>& branchBuds = branches[br].buds;
-    for (unsigned int bu = 0; bu < branchBuds.size(); ++bu) {
+        std::vector<Bud>& branchBuds = branches[br].buds;
+        for (unsigned int bu = 0; bu < branchBuds.size(); ++bu) {
             branchBuds[bu] = budArray[bu + budCounter];
         }
         budCounter += (unsigned int)branchBuds.size();
@@ -318,6 +322,7 @@ void Tree::AppendNewShoots(int n) {
             }
         }
     }
+    std::cout << "didUpdate: " << didUpdate << std::endl;
 }
 
 // Using the "pipe model" described in the paper, compute the radius of each branch
@@ -390,11 +395,114 @@ void Tree::RemoveAttractorPoints(std::vector<AttractorPoint>& attractorPoints) {
                 const float budToPtDist = glm::length2(attrPtIter->point - currentBud.point);
                 if (budToPtDist < 5.1f * currentBud.internodeLength * currentBud.internodeLength) { // ~2x internode length - use distance squared
                     attrPtIter = attractorPoints.erase(attrPtIter); // This attractor point is close to the bud, remove it
-                }
-                else {
+                } else {
                     ++attrPtIter;
                 }
             }
         }
     }
+}
+
+void Tree::create() {
+    // Flush currently stored mesh
+    treeMesh = Mesh();
+    leavesMesh = Mesh();
+
+    // Vectors containing branch geometry - many transformed versions of branchMesh all unioned together
+    std::vector<glm::vec3> branchPoints = std::vector<glm::vec3>();
+    std::vector<glm::vec3> branchNormals = std::vector<glm::vec3>();
+    std::vector<unsigned int> branchIndices = std::vector<unsigned int>();
+    // Retrieve branchMesh data
+    const std::vector<glm::vec3>& branchMeshPoints = branchMesh.GetPositions();
+    const std::vector<glm::vec3>& branchMeshNormals = branchMesh.GetNormals();
+    const std::vector<unsigned int>& branchMeshIndices = branchMesh.GetIndices();
+
+    // Do the same for all leaves in the tree
+    std::vector<glm::vec3> leafPoints = std::vector<glm::vec3>();
+    std::vector<glm::vec3> leafNormals = std::vector<glm::vec3>();
+    std::vector<unsigned int> leafIndices = std::vector<unsigned int>();
+    // Retrieve leafMesh data
+    const std::vector<glm::vec3>& leafMeshPoints = leafMesh.GetPositions();
+    const std::vector<glm::vec3>& leafMeshNormals = leafMesh.GetNormals();
+    const std::vector<unsigned int>& leafMeshIndices = leafMesh.GetIndices();
+
+    for (int br = 0; br < branches.size(); ++br) {
+        const std::vector<Bud>& buds = branches[br].GetBuds();
+        int bu = 1;
+        for (; bu < buds.size(); ++bu) {
+            const Bud& currentBud = buds[bu];
+            const glm::vec3& internodeEndPoint = currentBud.point; // effectively, just the position of the bud at the end of the current internode
+
+            // Compute the transformation for the current internode
+            glm::vec3 branchAxis = glm::normalize(internodeEndPoint - buds[bu - 1].point);
+            const float angle = std::acos(glm::dot(branchAxis, WORLD_UP_VECTOR));
+            glm::mat4 branchTransform;
+            if (angle > 0.01f) {
+                const glm::vec3 axis = glm::normalize(glm::cross(WORLD_UP_VECTOR, branchAxis));
+                const glm::quat branchQuat = glm::angleAxis(angle, axis);
+                branchTransform = glm::toMat4(branchQuat); // initially just a rotation matrix, eventually stores the entire transformation
+            }
+            else { // if it's pretty much straight up, call it straight up
+                branchTransform = glm::mat4(1.0f);
+            }
+
+            // Compute the translation component, placing the mesh at the halfway point
+            const glm::vec3 translation = internodeEndPoint - 0.5f * branchAxis * currentBud.internodeLength;
+
+            // Create an overall transformation matrix of translation and rotation
+            branchTransform = glm::translate(glm::mat4(1.0f), translation) * branchTransform * glm::scale(glm::mat4(1.0f), glm::vec3(currentBud.branchRadius * 0.02f, currentBud.internodeLength * 0.5f, currentBud.branchRadius * 0.02f));
+            
+            std::vector<glm::vec3> branchMeshPointsTrans = std::vector<glm::vec3>();
+            std::vector<glm::vec3> branchMeshNormalsTrans = std::vector<glm::vec3>();
+            for (int i = 0; i < branchMeshPoints.size(); ++i) {
+                branchMeshPointsTrans.emplace_back(glm::vec3(branchTransform * glm::vec4(branchMeshPoints[i], 1.0f)));
+                const glm::vec3 transformedNormal = glm::normalize(glm::vec3(glm::inverse(glm::transpose(branchTransform)) * glm::vec4(branchMeshNormals[i], 0.0f)));
+                branchMeshNormalsTrans.emplace_back(transformedNormal);
+            }
+
+            std::vector<unsigned int> branchMeshIndicesNew = std::vector<unsigned int>();
+            for (int i = 0; i < branchMeshIndices.size(); ++i) {
+                const unsigned int size = (unsigned int)branchPoints.size();
+                branchMeshIndicesNew.emplace_back(branchMeshIndices[i] + size); // Offset this set of indices by the # of positions
+            }
+
+            branchPoints.insert(branchPoints.end(), branchMeshPointsTrans.begin(), branchMeshPointsTrans.end());
+            branchNormals.insert(branchNormals.end(), branchMeshNormalsTrans.begin(), branchMeshNormalsTrans.end());
+            branchIndices.insert(branchIndices.end(), branchMeshIndicesNew.begin(), branchMeshIndicesNew.end());
+
+            /// Compute transformation(s) for leaves
+
+            if (currentBud.type == AXILLARY && currentBud.fate != FORMED_BRANCH /* && branches[br].GetAxisOrder() > 1*/) {
+                const float leafScale = 0.05f * currentBud.internodeLength / currentBud.branchRadius; // Joe's made-up heuristic
+                if (leafScale < 0.01) { break; }
+                std::vector<glm::vec3> leafMeshPointsTrans = std::vector<glm::vec3>();
+                std::vector<glm::vec3> leafMeshNormalsTrans = std::vector<glm::vec3>();
+                const glm::mat4 leafTransform = glm::translate(glm::mat4(1.0f), internodeEndPoint) * glm::toMat4(glm::angleAxis(std::acos(glm::dot(currentBud.naturalGrowthDir, WORLD_UP_VECTOR)), glm::normalize(glm::cross(WORLD_UP_VECTOR, currentBud.naturalGrowthDir))));
+                for (int i = 0; i < leafMeshPoints.size(); ++i) {
+                    leafMeshPointsTrans.emplace_back(glm::vec3(leafTransform * glm::vec4(leafMeshPoints[i] * leafScale, 1.0f)));
+                    const glm::vec3 transformedNormal = glm::normalize(glm::vec3(glm::inverse(glm::transpose(leafTransform)) * glm::vec4(leafMeshNormals[i], 0.0f)));
+                    leafMeshNormalsTrans.emplace_back(transformedNormal);
+                }
+
+                std::vector<unsigned int> leafIndicesNew = std::vector<unsigned int>();
+                for (int i = 0; i < leafMeshIndices.size(); ++i) {
+                    const unsigned int size = (unsigned int)leafPoints.size();
+                    leafIndicesNew.emplace_back(leafMeshIndices[i] + size); // Offset this set of indices by the # of positions
+                }
+                
+                leafPoints.insert(leafPoints.end(), leafMeshPointsTrans.begin(), leafMeshPointsTrans.end());
+                leafNormals.insert(leafNormals.end(), leafMeshNormalsTrans.begin(), leafMeshNormalsTrans.end());
+                leafIndices.insert(leafIndices.end(), leafIndicesNew.begin(), leafIndicesNew.end());
+            }
+        }
+    }
+    treeMesh.AddPositions(branchPoints);
+    treeMesh.AddNormals(branchNormals);
+    treeMesh.AddIndices(branchIndices);
+    leavesMesh.AddPositions(leafPoints);
+    leavesMesh.AddNormals(leafNormals);
+    leavesMesh.AddIndices(leafIndices);
+    treeMesh.create();
+    leavesMesh.create();
+    hasBeenCreated = true;
 }

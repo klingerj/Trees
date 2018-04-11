@@ -25,16 +25,21 @@ protected:
 private:
     pcg32 rng;
     std::uniform_real_distribution<float> dis;
+    Mesh boundingMesh;
+    bool shouldDisplay;
 public:
-    AttractorPointCloud() {
+    AttractorPointCloud() : shouldDisplay(true) {
         points = std::vector<AttractorPoint>();
         rng(101); // Any seed
         dis = std::uniform_real_distribution<float>(-1.0f, 1.0f);
+        boundingMesh = Mesh();
     }
+    bool ShouldDisplay() const { return shouldDisplay && points.size() > 0; }
+    void ToggleDisplay() { shouldDisplay = !shouldDisplay; }
     const std::vector<AttractorPoint>& GetPoints() { return points; }
     std::vector<AttractorPoint> GetPointsCopy() { return points; }
+    void GeneratePointsInUnitCube(unsigned int numPoints);
     void GeneratePoints(unsigned int numPoints);
-    void GeneratePoints(const Mesh& m, unsigned int numPoints);
     void AddPoints(const std::vector<AttractorPoint>& p) {
         points.insert(points.begin(), p.begin(), p.end());
     }
@@ -47,5 +52,5 @@ public:
 
     // Inherited functions from Drawable
     void create() override;
-    GLenum drawMode() { return GL_POINTS; }
+    GLenum drawMode() override { return GL_POINTS; }
 };

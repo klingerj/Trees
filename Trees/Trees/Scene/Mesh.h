@@ -32,21 +32,47 @@ public:
 class Mesh : public Drawable {
 private:
     // Lists of vertices and indices
+    std::vector<Triangle> triangles;
     std::vector<Vertex> vertices;
     std::vector<glm::vec3> positions;
     std::vector<glm::vec3> normals;
     std::vector<unsigned int> indices;
-    std::vector<Triangle> triangles;
 public:
-    Mesh();
-    ~Mesh();
+    Mesh() {
+        triangles = std::vector<Triangle>();
+        vertices = std::vector<Vertex>();
+        positions = std::vector<glm::vec3>();
+        normals = std::vector<glm::vec3>();
+        indices = std::vector<unsigned int>();
+    }
     void LoadFromFile(const char* filepath);
-    inline const std::vector<Vertex>& GetVertices() const { return vertices; }
-    /*inline const std::vector<glm::vec3>& GetPositions() const { return positions; }
-    inline const std::vector<glm::vec3>& GetNormals() const { return normals; }*/
-    inline const std::vector<unsigned int>& GetIndices() const { return indices; }
+
+    // Getters
+    const std::vector<Triangle>&     GetTriangles() const { return triangles; }
+    const std::vector<Vertex>&       GetVertices()  const { return vertices; }
+    const std::vector<glm::vec3>&    GetPositions() const { return positions; }
+    const std::vector<glm::vec3>&    GetNormals()   const { return normals; }
+    const std::vector<unsigned int>& GetIndices()   const { return indices; }
+
+    // Setters
+    void SetPositions(std::vector<glm::vec3>& p) { positions = p; }
+    void SetNormals(std::vector<glm::vec3>& n) { normals = n; }
+    void SetIndices(std::vector<unsigned int>& i) { indices = i; }
+
+    // Raytracing functions
     Intersection Intersect(const Ray& r) const; // Intersect a single ray with this mesh
     bool Contains(const glm::vec3& p) const; // Check if a point intersects this mesh an odd number of times
+
+    // Mesh manipulation
+    void AddPositions(const std::vector<glm::vec3>& p) {
+        positions.insert(positions.end(), p.begin(), p.end());
+    }
+    void AddNormals(const std::vector<glm::vec3>& n) {
+        normals.insert(normals.end(), n.begin(), n.end());
+    }
+    void AddIndices(const std::vector<unsigned int>& i) {
+        indices.insert(indices.end(), i.begin(), i.end());
+    }
 
     // Inherited Function(s)
     void create() override;

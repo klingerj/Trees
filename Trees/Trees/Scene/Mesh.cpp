@@ -5,10 +5,6 @@
 
 #include <iostream>
 
-Mesh::Mesh() {}
-
-Mesh::~Mesh() {}
-
 // Implementation based on example usage here: https://github.com/syoyo/tinyobjloader
 void Mesh::LoadFromFile(const char* filepath) {
     tinyobj::attrib_t attrib;

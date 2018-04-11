@@ -12,8 +12,8 @@ private:
     std::vector<AttractorPointCloud> sceneAttractorPointClouds;
 
     // App management variables
-    unsigned int currentlySelectedTreeIndex;
-    unsigned int currentlySelectedAttractorPointCloudIndex;
+    int currentlySelectedTreeIndex;
+    int currentlySelectedAttractorPointCloudIndex;
 
 public:
     TreeApplication() : currentlySelectedTreeIndex(-1), currentlySelectedAttractorPointCloudIndex(-1) {
@@ -22,53 +22,71 @@ public:
         std::vector<AttractorPointCloud> sceneAttractorPointClouds = std::vector<AttractorPointCloud>();
     }
 
+    void DestroyTrees() {
+        for (unsigned int t = 0; t < (unsigned int)sceneTrees.size(); ++t) {
+            sceneTrees[t].DestroyMeshes();
+        }
+    }
+    void DestroyAttractorPointClouds() {
+        for (unsigned int ap = 0; ap < (unsigned int)sceneAttractorPointClouds.size(); ++ap) {
+            sceneAttractorPointClouds[ap].destroy();
+        }
+    }
+
     // Scene Edition Functions
     void AddTreeToScene() {
         sceneTrees.emplace_back(Tree());
-        currentlySelectedTreeIndex = sceneTrees.size() - 1;
+        currentlySelectedTreeIndex = (int)(sceneTrees.size()) - 1;
     }
     void AddAttractorPointCloudToScene() {
         sceneAttractorPointClouds.emplace_back(AttractorPointCloud());
-        currentlySelectedAttractorPointCloudIndex = sceneAttractorPointClouds.size() - 1;
+        currentlySelectedAttractorPointCloudIndex = (int)(sceneAttractorPointClouds.size()) - 1;
     }
 
     AttractorPointCloud& GetSelectedAttractorPointCloud() {
         if (currentlySelectedAttractorPointCloudIndex != -1) {
             return sceneAttractorPointClouds[currentlySelectedAttractorPointCloudIndex];
         }
+        return AttractorPointCloud(); // a bad temporary attractor point cloud! TODO replace this functionality
     }
     Tree& GetSelectedTree() {
         if (currentlySelectedTreeIndex != -1) {
             return sceneTrees[currentlySelectedTreeIndex];
         }
+        return Tree(); // a bad temporary tree!
     }
     const Tree& GetSelectedTreeConst() const {
         if (currentlySelectedTreeIndex != -1) {
             return sceneTrees[currentlySelectedTreeIndex];
         }
+        return Tree(); // a bad temporary tree!
     }
 
-    void GrowSelectedTreeIntoSelectedAttractorPointCloud() {
-        if (currentlySelectedTreeIndex != -1 && currentlySelectedAttractorPointCloudIndex != -1) {
-            #ifdef ENABLE_DEBUG_OUTPUT
-            auto start = std::chrono::system_clock::now();
-            #endif
-            sceneTrees[currentlySelectedTreeIndex].IterateGrowth(sceneAttractorPointClouds[currentlySelectedAttractorPointCloudIndex].GetPointsCopy(), treeParameters, true);
-            #ifdef ENABLE_DEBUG_OUTPUT
-            auto end = std::chrono::system_clock::now();
-            std::chrono::duration<double> elapsed_seconds = end - start;
-            std::time_t end_time = std::chrono::system_clock::to_time_t(end);
-            std::cout << "Total Elapsed time for Tree Generation: " << elapsed_seconds.count() << "s\n";
-            #endif
-        }
-    }
+    void IterateSelectedTreeInSelectedAttractorPointCloud();
+    void RegrowSelectedTreeInSelectedAttractorPointCloud();
+
+
     TreeParameters& GetTreeParameters() { return treeParameters; }
     const TreeParameters& GetTreeParametersConst() const { return treeParameters; }
 
-    // Drawing the scene
+    // Functions for drawing the scene
     void DrawAttractorPointClouds(ShaderProgram& sp) {
-        for (int ap = 0; ap < sceneAttractorPointClouds.size(); ++ap) {
-            sp.Draw(sceneAttractorPointClouds[ap]);
+        for (unsigned int ap = 0; ap < (unsigned int)sceneAttractorPointClouds.size(); ++ap) {
+            AttractorPointCloud& currentAPC = sceneAttractorPointClouds[ap];
+            if (currentAPC.ShouldDisplay()) {
+                sp.Draw(sceneAttractorPointClouds[ap]);
+            }
+        }
+    }
+    void DrawTrees(ShaderProgram& sp) {
+        for (unsigned int t = 0; t < (unsigned int)sceneTrees.size(); ++t) {
+            Tree& currentTree = sceneTrees[t];
+            if (currentTree.HasBeenCreated()) {
+                sp.setUniformColor("u_color", currentTree.GetBranchColor());
+                sp.Draw(currentTree.GetTreeMesh());
+                sp.setUniformColor("u_color", currentTree.GetLeafColor());
+                sp.Draw(currentTree.GetLeavesMesh());
+            }
         }
     }
 };
