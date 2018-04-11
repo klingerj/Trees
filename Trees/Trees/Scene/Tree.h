@@ -35,6 +35,8 @@
 #define PIPE_EXPONENT 2.8f // somewhere between 2 and 3 usually according to the paper
 #define MAXIMUM_BRANCH_RADIUS 0.05f
 
+#define INITIAL_NUM_ATTR_PTS 500000
+
 /// Definition of structures
 
 struct TreeParameters {
@@ -51,11 +53,13 @@ struct TreeParameters {
     float pipeModelExponent;
     float maximumBranchRadius;
     int numSpaceColonizationIterations;
+    int numAttractorPointsToGenerate;
 
     TreeParameters() :
         initialBranchRadius(INITIAL_BRANCH_RADIUS), initialBudInternodeRadius(INITIAL_BUD_INTERNODE_RADIUS), perceptionCosTheta(COS_THETA), perceptionCosThetaSmall(COS_THETA_SMALL),
         BHAlpha(ALPHA), BHLambda(LAMBDA), optimalGrowthDirWeight(OPTIMAL_GROWTH_DIR_WEIGHT), tropismDirWeight(TROPISM_DIR_WEIGHT), tropismVector(TROPISM_DIR_WEIGHT),
-        minimumBranchRadius(MINIMUM_BRANCH_RADIUS), pipeModelExponent(PIPE_EXPONENT), maximumBranchRadius(MAXIMUM_BRANCH_RADIUS), numSpaceColonizationIterations(INITIAL_NUM_ITERATIONS) {}
+        minimumBranchRadius(MINIMUM_BRANCH_RADIUS), pipeModelExponent(PIPE_EXPONENT), maximumBranchRadius(MAXIMUM_BRANCH_RADIUS), numSpaceColonizationIterations(INITIAL_NUM_ITERATIONS),
+        numAttractorPointsToGenerate(INITIAL_NUM_ATTR_PTS) {}
 };
 
 enum BUD_FATE {

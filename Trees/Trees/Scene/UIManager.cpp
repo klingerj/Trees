@@ -19,6 +19,7 @@ void UIManager::ImguiSetup(GLFWwindow* window) {
 void UIManager::HandleInput(TreeApplication& treeApp) {
     ImGui::SliderFloat("Maximum Branch Radius", &treeApp.GetTreeParameters().maximumBranchRadius, 0.0f, 100.0f);
     ImGui::SliderInt("Num Space Col Iterations", &treeApp.GetTreeParameters().numSpaceColonizationIterations, 0, 10000);
+    ImGui::SliderInt("Num Attr Pts to Gen", &treeApp.GetTreeParameters().numAttractorPointsToGenerate, 0, 1000000);
     if (ImGui::Button("Iterate Tree")) {
         treeApp.IterateSelectedTreeInSelectedAttractorPointCloud();
     }
@@ -27,7 +28,7 @@ void UIManager::HandleInput(TreeApplication& treeApp) {
     }
     if (ImGui::Button("Add Attr Pt Cloud")) {
         treeApp.AddAttractorPointCloudToScene();
-        treeApp.GetSelectedAttractorPointCloud().GeneratePoints(50000);
+        treeApp.GetSelectedAttractorPointCloud().GeneratePoints(500000);
     }
     if (ImGui::Button("Show/Hide Current Attr Pt Cloud")) {
         treeApp.GetSelectedAttractorPointCloud().ToggleDisplay();
