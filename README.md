@@ -9,6 +9,9 @@ Then, we iteratively grow the tree. In the gif below, I clicked the "Iterate Tre
 for the indicated 25 iterations.
 ![](./Images/treeGrowth.gif)
 
+Here's a previous iteration of the project where I grew tree branches into a heart shape:
+![](./Images/heart.PNG)
+
 # Credits / Resources
 * [LearnOpenGL](https://learnopengl.com/) for base code setup guidance.
 * [GLAD](https://github.com/Dav1dde/glad) for GL Loading/Generating based on official specs.
