@@ -21,4 +21,4 @@ Here's a previous iteration of the project where I grew tree branches into a hea
 * [PCG32](http://www.pcg-random.org/) for header-only, seeded random number generation.
 * [Imgui](https://github.com/ocornut/imgui) for easy and awesome UI.
 * [UPenn Course CIS 460](https://www.cis.upenn.edu/~cis460/current/) for some code organization ideas.
-* [UPenn Course CIS 461](https://github.com/CIS-461-2017) for some raytracing code. Credit to [Adam Mally] (https://www.linkedin.com/in/adam-mally-888b912b/), the professor for these courses.
+* [UPenn Course CIS 461](https://github.com/CIS-461-2017) for some raytracing code. Credit to [Adam Mally](https://www.linkedin.com/in/adam-mally-888b912b/), the professor for these courses.
