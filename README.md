@@ -1,7 +1,13 @@
 # Trees
 
-Current status of the project (red points are attractor points). Show iterations 1-12 of the space colonization algorithm.
-![](./Images/Webp.net-gifmaker.gif)
+This project grows trees into clouds of attractor points to help model trees procedurally!
+
+First, we place attractor points within a bounding mesh:
+![](./Images/points.PNG)
+
+Then, we iteratively grow the tree. In the gif below, I clicked the "Iterate Tree" Button, which will run the space colonization algorithm
+for the indicated 25 iterations.
+![](./Images/treeGrowth.gif)
 
 # Credits / Resources
 * [LearnOpenGL](https://learnopengl.com/) for base code setup guidance.
