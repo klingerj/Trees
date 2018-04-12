@@ -75,12 +75,45 @@ ShaderProgram::ShaderProgram(const GLchar* vertexPath, const GLchar* fragmentPat
         std::cout << "Shader Program linking failed\n" << infoLog << std::endl;
     }
 
+    // Get various attribute locations
+    glBindAttribLocation(ID, 0, "vsPos");
+    glBindAttribLocation(ID, 1, "vsNor");
+
     // Don't need these anymore
     glDeleteShader(vertex);
     glDeleteShader(fragment);
 }
 
+void ShaderProgram::Draw(Drawable& d) {
+    use();
+
+    // Position
+    int attrPos = glGetAttribLocation(ID, "vsPos");
+    if (attrPos != -1 && d.bindBufPos()) {
+        glVertexAttribPointer(attrPos, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
+        glEnableVertexAttribArray(attrPos);
+    }
+
+    // Normal
+    int attrNor = glGetAttribLocation(ID, "vsNor");
+    if (attrNor != -1 && d.bindBufNor()) {
+        glVertexAttribPointer(attrNor, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
+        glEnableVertexAttribArray(attrNor);
+    }
+
+    d.bindBufIdx();
+    glDrawElements(d.drawMode(), d.idxCount(), GL_UNSIGNED_INT, 0);
+
+    if (attrPos != -1) { glDisableVertexAttribArray(0); }
+    if (attrNor != -1) { glDisableVertexAttribArray(1); }
+}
+
 void ShaderProgram::setCameraViewProj(const char* uniformName, const glm::mat4& camViewProj) {
     use();
     glUniformMatrix4fv(glGetUniformLocation(ID, uniformName), 1, GL_FALSE, glm::value_ptr(camViewProj));
+}
+
+void ShaderProgram::setUniformColor(const char* uniformName, const glm::vec3& color) {
+    use();
+    glUniform3fv(glGetUniformLocation(ID, uniformName), 1, glm::value_ptr(color));
 }

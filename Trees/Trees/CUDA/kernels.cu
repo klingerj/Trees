@@ -7,7 +7,7 @@
 #include <stdio.h>
 
 // Note: this implementation uses the "nearestBudIdx" field differently than the CPU implementation. This is because on the GPU, we don't
-// have access to the "branches" vector, so we jus tmake the bud idx the index in the one big array of buds, not the index in the vector
+// have access to the Tree's "branches" vector, so we just make the bud idx the index in the one big array of buds, not the index in the vector
 // of buds for a certain branch.
 __global__ void kernSetNearestBudForAttractorPoints(Bud* dev_buds, const int numBuds, AttractorPoint* dev_attrPts, const int numAttractorPoints, int* dev_mutex) {
     int index = threadIdx.x + (blockIdx.x * blockDim.x);
@@ -77,6 +77,8 @@ cudaError_t RunSpaceColonizationKernel(Bud* buds, const int numBuds, AttractorPo
     AttractorPoint* dev_attrPts = 0;
     int* dev_mutex = 0;
 
+    const int blockSize = 32;
+
     // Device
     cudaStatus = cudaSetDevice(0);
     if (cudaStatus != cudaSuccess) {
@@ -119,7 +121,6 @@ cudaError_t RunSpaceColonizationKernel(Bud* buds, const int numBuds, AttractorPo
     cudaMemset(dev_mutex, 0, numAttractorPoints * sizeof(int));
 
     // Run the kernel
-    const int blockSize = 32;
     kernSetNearestBudForAttractorPoints << < (numBuds + blockSize - 1) / blockSize, blockSize >> > (dev_buds, numBuds, dev_attrPts, numAttractorPoints, dev_mutex);
     kernSpaceCol << < (numBuds + blockSize - 1) / blockSize, blockSize >> > (dev_buds, numBuds, dev_attrPts, numAttractorPoints, dev_mutex);
 
@@ -130,10 +131,11 @@ cudaError_t RunSpaceColonizationKernel(Bud* buds, const int numBuds, AttractorPo
         goto Error;
     }
 
-Error:
+Error: {
     cudaFree(dev_buds);
     cudaFree(dev_attrPts);
     cudaFree(dev_mutex);
+}
 
     return cudaStatus;
 }

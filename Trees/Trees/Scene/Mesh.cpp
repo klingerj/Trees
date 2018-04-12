@@ -5,10 +5,6 @@
 
 #include <iostream>
 
-Mesh::Mesh() {}
-
-Mesh::~Mesh() {}
-
 // Implementation based on example usage here: https://github.com/syoyo/tinyobjloader
 void Mesh::LoadFromFile(const char* filepath) {
     tinyobj::attrib_t attrib;
@@ -42,9 +38,13 @@ void Mesh::LoadFromFile(const char* filepath) {
                 Vertex newVert;
                 newVert.pos = { attrib.vertices[3 * idx.vertex_index], attrib.vertices[3 * idx.vertex_index + 1], attrib.vertices[3 * idx.vertex_index + 2] };
                 newVert.nor = { attrib.normals[3 * idx.normal_index], attrib.normals[3 * idx.normal_index + 1], attrib.normals[3 * idx.normal_index + 2] };
+                
+                // Store data
                 vertices.emplace_back(newVert);
                 indices.emplace_back(index);
                 t.AppendVertex(newVert.pos);
+                positions.emplace_back(newVert.pos);
+                normals.emplace_back(newVert.nor);
             }
             index_offset += fv;
             t.ComputePlaneNormal();
@@ -89,7 +89,7 @@ Intersection Mesh::Intersect(const Ray& r) const {
     return finalIsect;
 }
 
-const bool Mesh::Contains(const glm::vec3 & p) const {
+bool Mesh::Contains(const glm::vec3 & p) const {
     Ray r = Ray(p, glm::vec3(1.0f, 0.0f, 0.0f)); // Ray direction is arbitrary. It can be anything
     Intersection isect = Intersect(r);
     unsigned int isectCounter = 0;
@@ -100,4 +100,24 @@ const bool Mesh::Contains(const glm::vec3 & p) const {
         isect = Intersect(r);
     }
     return isectCounter == 1; // There was an odd number of intersections
+}
+
+// Inherited from Drawable
+
+void Mesh::create() {
+    // Indices
+    genBufIdx();
+    count = (int)indices.size();
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bufIdx);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * indices.size(), indices.data(), GL_STATIC_DRAW);
+
+    // Positions
+    genBufPos();
+    glBindBuffer(GL_ARRAY_BUFFER, bufPos);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * positions.size(), positions.data(), GL_STATIC_DRAW);
+
+    // Normals
+    genBufNor();
+    glBindBuffer(GL_ARRAY_BUFFER, bufNor);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * normals.size(), normals.data(), GL_STATIC_DRAW);
 }
