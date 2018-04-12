@@ -2,7 +2,7 @@
 
 This project grows trees into clouds of attractor points to help model trees procedurally!
 
-First, we place attractor points within a bounding mesh:
+First, we place attractor points within a bounding mesh. Here's a helix for example:
 ![](./Images/points.PNG)
 
 Then, we iteratively grow the tree. In the gif below, I clicked the "Iterate Tree" Button, which will run the space colonization algorithm
