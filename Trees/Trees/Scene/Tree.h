@@ -171,10 +171,10 @@ public:
 
     // Tree Growth Functions (grouped by association)
     const std::vector<TreeBranch>& GetBranches() const { return branches; }
-    void IterateGrowth(std::vector<AttractorPoint>& attractorPoints, const TreeParameters& treeParams, bool useGPU = false);
-    void PerformSpaceColonization(std::vector<AttractorPoint>& attractorPoints, bool useGPU);
+    void IterateGrowth(std::vector<AttractorPoint>& attractorPoints, const glm::vec3& minAttrPt, const glm::vec3& maxAttrPt, const TreeParameters& treeParams, bool useGPU = false);
+    void PerformSpaceColonization(std::vector<AttractorPoint>& attractorPoints, const glm::vec3& minAttrPt, const glm::vec3& maxAttrPt, bool useGPU);
     void PerformSpaceColonizationCPU(std::vector<AttractorPoint>& attractorPoints);
-    void PerformSpaceColonizationGPU(std::vector<AttractorPoint>& attractorPoints);
+    void PerformSpaceColonizationGPU(std::vector<AttractorPoint>& attractorPoints, const glm::vec3& minAttrPt, const glm::vec3& maxAttrPt);
     void RemoveAttractorPoints(std::vector<AttractorPoint>& attractorPoints);
 
     float ComputeQAccumRecursive(TreeBranch& branch);

@@ -21,14 +21,17 @@ struct AttractorPoint {
 
 class AttractorPointCloud : public Drawable {
 protected:
-    std::vector<AttractorPoint> points;
+    
 private:
+    std::vector<AttractorPoint> points;
+    glm::vec3 minPoint;
+    glm::vec3 maxPoint;
     pcg32 rng;
     std::uniform_real_distribution<float> dis;
     Mesh boundingMesh;
     bool shouldDisplay;
 public:
-    AttractorPointCloud() : shouldDisplay(true) {
+    AttractorPointCloud() : shouldDisplay(true), minPoint(glm::vec3(999999.0f)), maxPoint(glm::vec3(-999999.0f)) {
         points = std::vector<AttractorPoint>();
         rng(101); // Any seed
         dis = std::uniform_real_distribution<float>(-1.0f, 1.0f);
@@ -36,8 +39,11 @@ public:
     }
     bool ShouldDisplay() const { return shouldDisplay && points.size() > 0; }
     void ToggleDisplay() { shouldDisplay = !shouldDisplay; }
-    const std::vector<AttractorPoint>& GetPoints() { return points; }
-    std::vector<AttractorPoint> GetPointsCopy() { return points; }
+    const std::vector<AttractorPoint>& GetPointsConst() const { return points; }
+    std::vector<AttractorPoint>& GetPoints() { return points; }
+    std::vector<AttractorPoint> GetPointsCopy() const { return points; }
+    const glm::vec3& GetMinPoint() const { return minPoint; }
+    const glm::vec3& GetMaxPoint() const { return maxPoint; }
     void GeneratePointsInUnitCube(unsigned int numPoints);
     void GeneratePoints(unsigned int numPoints);
     void AddPoints(const std::vector<AttractorPoint>& p) {

@@ -7,7 +7,13 @@ void AttractorPointCloud::GeneratePointsInUnitCube(unsigned int numPoints) {
     #endif
     for (unsigned int i = 0; i < numPoints; ++i) {
         const glm::vec3 p = glm::vec3(dis(rng), dis(rng), dis(rng));
-        points.emplace_back(AttractorPoint(points[i]));
+        minPoint.x = std::min(minPoint.x, p.x);
+        minPoint.y = std::min(minPoint.y, p.y);
+        minPoint.z = std::min(minPoint.z, p.z);
+        maxPoint.x = std::max(maxPoint.x, p.x);
+        maxPoint.y = std::max(maxPoint.y, p.y);
+        maxPoint.z = std::max(maxPoint.z, p.z);
+        points.emplace_back(AttractorPoint(p));
     }
     #ifdef ENABLE_DEBUG_OUTPUT
     auto end = std::chrono::system_clock::now();
@@ -25,10 +31,16 @@ void AttractorPointCloud::GeneratePoints(unsigned int numPoints) {
     #endif
     boundingMesh.LoadFromFile("OBJs/helixRot.obj");
     for (unsigned int i = 0; i < numPoints; ++i) {
-        const glm::vec3 p = glm::vec3(dis(rng) * 2.0f, dis(rng) * 2.0f, dis(rng) * 4.0f);
+        const glm::vec3 p = glm::vec3(dis(rng) * 0.05f, dis(rng) * 0.2f, dis(rng) * 0.05f);
 
         // Intersect with mesh
         if (boundingMesh.Contains(p)) {
+            minPoint.x = std::min(minPoint.x, p.x);
+            minPoint.y = std::min(minPoint.y, p.y);
+            minPoint.z = std::min(minPoint.z, p.z);
+            maxPoint.x = std::max(maxPoint.x, p.x);
+            maxPoint.y = std::max(maxPoint.y, p.y);
+            maxPoint.z = std::max(maxPoint.z, p.z);
             points.emplace_back(AttractorPoint(p));
         }
     }
