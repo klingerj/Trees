@@ -190,7 +190,7 @@ __global__ void kernSpaceCol(Bud* dev_buds, const glm::vec3 gridMin, const int g
         }
     }*/
     currentBud.optimalGrowthDir = currentBud.numNearbyAttrPts > 0 ? glm::normalize(currentBud.optimalGrowthDir) : glm::vec3(0.0f);
-    printf("Optimal Growth Dir: %f, %f, %f", currentBud.optimalGrowthDir.x, currentBud.optimalGrowthDir.y, currentBud.optimalGrowthDir.z);
+    //printf("Optimal Growth Dir: %f, %f, %f", currentBud.optimalGrowthDir.x, currentBud.optimalGrowthDir.y, currentBud.optimalGrowthDir.z);
 }
 
 // Uniform Grid Implementation functions

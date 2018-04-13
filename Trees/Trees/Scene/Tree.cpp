@@ -115,15 +115,33 @@ void Tree::IterateGrowth(std::vector<AttractorPoint>& attractorPoints, const glm
 }
 
 void Tree::PerformSpaceColonization(std::vector<AttractorPoint>& attractorPoints, const glm::vec3& minAttrPt, const glm::vec3& maxAttrPt, bool useGPU) {
+    #ifdef ENABLE_DEBUG_OUTPUT
+    auto start = std::chrono::system_clock::now();
+    #endif
     RemoveAttractorPoints(attractorPoints);
+    #ifdef ENABLE_DEBUG_OUTPUT
+    auto end = std::chrono::system_clock::now();
+    std::chrono::duration<double> elapsed_seconds = end - start;
+    std::time_t end_time = std::chrono::system_clock::to_time_t(end);
+    std::cout << "Total Elapsed time for Attractor Point Removal: " << elapsed_seconds.count() << "s\n";
+    #endif
     
     if (attractorPoints.size() == 0) { return; }
 
+    #ifdef ENABLE_DEBUG_OUTPUT
+    start = std::chrono::system_clock::now();
+    #endif
     if (useGPU) {
         PerformSpaceColonizationGPU(attractorPoints, minAttrPt, maxAttrPt);
     } else {
         PerformSpaceColonizationCPU(attractorPoints);
     }
+    #ifdef ENABLE_DEBUG_OUTPUT
+    end = std::chrono::system_clock::now();
+    elapsed_seconds = end - start;
+    end_time = std::chrono::system_clock::to_time_t(end);
+    std::cout << "Total Elapsed time for Actual Space Col: " << elapsed_seconds.count() << "s\n";
+    #endif
 }
 
 void Tree::PerformSpaceColonizationCPU(std::vector<AttractorPoint>& attractorPoints) {
@@ -182,9 +200,6 @@ void Tree::PerformSpaceColonizationCPU(std::vector<AttractorPoint>& attractorPoi
                     }
                 }
                 currentBud.optimalGrowthDir = currentBud.numNearbyAttrPts > 0 ? glm::normalize(currentBud.optimalGrowthDir) : glm::vec3(0.0f);
-                std::cout << "Optimal Growth Dir.x: " << currentBud.optimalGrowthDir.x;
-                std::cout << "Optimal Growth Dir.y: " << currentBud.optimalGrowthDir.y;
-                std::cout << "Optimal Growth Dir.z: " << currentBud.optimalGrowthDir.z << std::endl;
             }
         }
     }

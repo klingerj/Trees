@@ -6,7 +6,7 @@ void TreeApplication::IterateSelectedTreeInSelectedAttractorPointCloud() {
         auto start = std::chrono::system_clock::now();
         #endif
         AttractorPointCloud& currentAttrPtCloud = sceneAttractorPointClouds[currentlySelectedAttractorPointCloudIndex];
-        sceneTrees[currentlySelectedTreeIndex].IterateGrowth(currentAttrPtCloud.GetPointsCopy(), currentAttrPtCloud.GetMinPoint(), currentAttrPtCloud.GetMaxPoint(), treeParameters, false);
+        sceneTrees[currentlySelectedTreeIndex].IterateGrowth(currentAttrPtCloud.GetPointsCopy(), currentAttrPtCloud.GetMinPoint(), currentAttrPtCloud.GetMaxPoint(), treeParameters, true);
         #ifdef ENABLE_DEBUG_OUTPUT
         auto end = std::chrono::system_clock::now();
         std::chrono::duration<double> elapsed_seconds = end - start;
