@@ -8,6 +8,12 @@
 
 #define checkCUDAErrorWithLine(msg) checkCUDAError(msg, __LINE__)
 
+// Uniform grid for attractor points
+int* dev_attrPtIndices = 0; // indices of each attractor point (0, 1, ..., n)
+int* dev_gridCellIndices = 0; // grid cell index of each attractor point
+int* dev_gridCellStartIndices = 0; // start index of a grid cell
+int* dev_gridCellEndIndices = 0; // end index of a grid cell
+
 /**
 * Check for CUDA errors; print and exit if there was a problem.
 */
@@ -225,22 +231,54 @@ __global__ void kernIdentifyCellStartEnd(const int numAttrPts, int* gridCellIndi
 }
 
 cudaError_t RunSpaceColonizationKernel(Bud* buds, const int numBuds, AttractorPoint* attractorPoints, const int numAttractorPoints,
-                                       const int gridSideCount, const int numTotalGridCells, const glm::vec3& gridMin, const float gridCellWidth) {
+                                       const int gridSideCount, const int numTotalGridCells, const glm::vec3& gridMin, const float gridCellWidth, bool& reconstructUniformGrid) {
     cudaError_t cudaStatus;
 
     Bud* dev_buds = 0;
     AttractorPoint* dev_attrPts = 0;
     AttractorPoint* dev_attrPts_memCoherent = 0;
     int* dev_mutex = 0;
-    int* dev_attrPtIndices = 0; // indices of each attractor point (0, 1, ..., n)
-    int* dev_gridCellIndices = 0; // grid cell index of each attractor point
-    int* dev_gridCellStartIndices = 0; // start index of a grid cell
-    int* dev_gridCellEndIndices = 0; // end index of a grid cell
 
-    const float gridInverseCellWidth = 1.0f / gridCellWidth;
     const int blockSize = 32;
     dim3 fullBlocksPerGrid_Buds((numBuds + blockSize - 1) / blockSize);
     dim3 fullBlocksPerGrid_AttrPts((numAttractorPoints + blockSize - 1) / blockSize);
+
+    // Create the uniform grid if it hasn't been created / needs to be recreated
+    if (reconstructUniformGrid) {
+        const float gridInverseCellWidth = 1.0f / gridCellWidth;
+        cudaStatus = cudaMalloc((void**)&dev_attrPtIndices, numAttractorPoints * sizeof(int));
+        if (cudaStatus != cudaSuccess) {
+            fprintf(stderr, "cudaMalloc dev_attrPtIndices failed!");
+            //goto Error;
+        }
+
+        cudaStatus = cudaMalloc((void**)&dev_gridCellIndices, numAttractorPoints * sizeof(int));
+        if (cudaStatus != cudaSuccess) {
+            fprintf(stderr, "cudaMalloc dev_gridCellIndices failed!");
+            //goto Error;
+        }
+
+        cudaStatus = cudaMalloc((void**)&dev_gridCellStartIndices, numTotalGridCells * sizeof(int));
+        if (cudaStatus != cudaSuccess) {
+            fprintf(stderr, "cudaMalloc dev_gridCellStartIndices failed!");
+            //goto Error;
+        }
+
+        cudaStatus = cudaMalloc((void**)&dev_gridCellEndIndices, numTotalGridCells * sizeof(int));
+        if (cudaStatus != cudaSuccess) {
+            fprintf(stderr, "cudaMalloc failed!");
+            //goto Error;
+        }
+
+        cudaMemset(dev_gridCellIndices, -1, numAttractorPoints * sizeof(int));
+        checkCUDAErrorWithLine("Before Compute Indices");
+        cudaMemset(dev_gridCellStartIndices, -1, numTotalGridCells * sizeof(int));
+        checkCUDAErrorWithLine("Before Compute Indices");
+        cudaMemset(dev_gridCellEndIndices, -1, numTotalGridCells * sizeof(int));
+        checkCUDAErrorWithLine("Before Compute Indices");
+    }
+
+    
 
     // Device
     cudaStatus = cudaSetDevice(0);
@@ -274,30 +312,6 @@ cudaError_t RunSpaceColonizationKernel(Bud* buds, const int numBuds, AttractorPo
         //goto Error;
     }
 
-    cudaStatus = cudaMalloc((void**)&dev_attrPtIndices, numAttractorPoints * sizeof(int));
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMalloc dev_attrPtIndices failed!");
-        //goto Error;
-    }
-
-    cudaStatus = cudaMalloc((void**)&dev_gridCellIndices, numAttractorPoints * sizeof(int));
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMalloc dev_gridCellIndices failed!");
-        //goto Error;
-    }
-
-    cudaStatus = cudaMalloc((void**)&dev_gridCellStartIndices, numTotalGridCells * sizeof(int));
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMalloc dev_gridCellStartIndices failed!");
-        //goto Error;
-    }
-
-    cudaStatus = cudaMalloc((void**)&dev_gridCellEndIndices, numTotalGridCells * sizeof(int));
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMalloc failed!");
-        //goto Error;
-    }
-
     // Cuda memcpy
     cudaStatus = cudaMemcpy(dev_buds, buds, numBuds * sizeof(Bud), cudaMemcpyHostToDevice);
     if (cudaStatus != cudaSuccess) {
@@ -314,12 +328,6 @@ cudaError_t RunSpaceColonizationKernel(Bud* buds, const int numBuds, AttractorPo
     cudaDeviceSynchronize();
 
     cudaMemset(dev_mutex, 0, numAttractorPoints * sizeof(int));
-    checkCUDAErrorWithLine("Before Compute Indices");
-    cudaMemset(dev_gridCellIndices, -1, numAttractorPoints * sizeof(int));
-    checkCUDAErrorWithLine("Before Compute Indices");
-    cudaMemset(dev_gridCellStartIndices, -1, numTotalGridCells * sizeof(int));
-    checkCUDAErrorWithLine("Before Compute Indices");
-    cudaMemset(dev_gridCellEndIndices, -1, numTotalGridCells * sizeof(int));
     checkCUDAErrorWithLine("Before Compute Indices");
 
     cudaDeviceSynchronize();
@@ -397,8 +405,8 @@ cudaError_t RunSpaceColonizationKernel(Bud* buds, const int numBuds, AttractorPo
 }
 
 void TreeApp::PerformSpaceColonizationParallel(Bud* buds, const int numBuds, AttractorPoint* attractorPoints, const int numAttractorPoints,
-                                               const int gridSideCount, const int numTotalGridCells, const glm::vec3& gridMin, const float gridCellWidth) {
-    cudaError_t cudaStatus = RunSpaceColonizationKernel(buds, numBuds, attractorPoints, numAttractorPoints, gridSideCount, numTotalGridCells, gridMin, gridCellWidth);
+                                               const int gridSideCount, const int numTotalGridCells, const glm::vec3& gridMin, const float gridCellWidth, bool& reconstructUniformGrid) {
+    cudaError_t cudaStatus = RunSpaceColonizationKernel(buds, numBuds, attractorPoints, numAttractorPoints, gridSideCount, numTotalGridCells, gridMin, gridCellWidth, reconstructUniformGrid);
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "Space Colonization failed!\n");
     }
