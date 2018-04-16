@@ -15,8 +15,9 @@ struct AttractorPoint {
     float nearestBudDist2; // how close the nearest bud is that has this point in its perception volume, squared
     int nearestBudBranchIdx; // index in the array of the branch of that bud ^^
     int nearestBudIdx; // index in the array of the bud of that branch ^^
+    bool removed;
 
-    AttractorPoint(const glm::vec3& p) : point(p), nearestBudDist2(9999999.0f), nearestBudBranchIdx(-1), nearestBudIdx(-1) {}
+    AttractorPoint(const glm::vec3& p) : point(p), nearestBudDist2(9999999.0f), nearestBudBranchIdx(-1), nearestBudIdx(-1), removed(false) {}
 };
 
 class AttractorPointCloud : public Drawable {

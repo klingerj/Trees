@@ -115,31 +115,32 @@ void Tree::IterateGrowth(std::vector<AttractorPoint>& attractorPoints, const glm
 }
 
 void Tree::PerformSpaceColonization(std::vector<AttractorPoint>& attractorPoints, const glm::vec3& minAttrPt, const glm::vec3& maxAttrPt, bool useGPU) {
-    #ifdef ENABLE_DEBUG_OUTPUT
+    /*#ifdef ENABLE_DEBUG_OUTPUT
     auto start = std::chrono::system_clock::now();
-    #endif
+    #endif*/
     RemoveAttractorPoints(attractorPoints);
-    #ifdef ENABLE_DEBUG_OUTPUT
+    /*#ifdef ENABLE_DEBUG_OUTPUT
     auto end = std::chrono::system_clock::now();
     std::chrono::duration<double> elapsed_seconds = end - start;
     std::time_t end_time = std::chrono::system_clock::to_time_t(end);
     std::cout << "Total Elapsed time for Attractor Point Removal: " << elapsed_seconds.count() << "s\n";
-    #endif
+    #endif*/
     
     if (attractorPoints.size() == 0) { return; }
 
     #ifdef ENABLE_DEBUG_OUTPUT
-    start = std::chrono::system_clock::now();
+    auto start = std::chrono::system_clock::now();
     #endif
     if (useGPU) {
         PerformSpaceColonizationGPU(attractorPoints, minAttrPt, maxAttrPt);
     } else {
+        RemoveAttractorPoints(attractorPoints);
         PerformSpaceColonizationCPU(attractorPoints);
     }
     #ifdef ENABLE_DEBUG_OUTPUT
-    end = std::chrono::system_clock::now();
-    elapsed_seconds = end - start;
-    end_time = std::chrono::system_clock::to_time_t(end);
+    auto end = std::chrono::system_clock::now();
+    std::chrono::duration<double> elapsed_seconds = end - start;
+    std::time_t end_time = std::chrono::system_clock::to_time_t(end);
     std::cout << "Total Elapsed time for Actual Space Col: " << elapsed_seconds.count() << "s\n";
     #endif
 }
@@ -379,7 +380,7 @@ float Tree::ComputeBranchRadiiRecursive(TreeBranch& branch, const TreeParameters
             switch (currentBud.fate) {
             case DORMANT:
                 //branchRadius += std::pow(currentBud.branchRadius, PIPE_EXPONENT);
-                // do nothing I think, only add at branching points
+                // do nothing I think, only add at branching points. TODO verify
                 break;
             case FORMED_BRANCH:
                 branchRadius = std::pow(std::pow(branchRadius, PIPE_EXPONENT) + std::pow(ComputeBranchRadiiRecursive(branches[currentBud.formedBranchIndex], treeParams), PIPE_EXPONENT), 1.0f / PIPE_EXPONENT);
@@ -420,6 +421,7 @@ void Tree::ResetState(std::vector<AttractorPoint>& attractorPoints) {
         currentAttrPt.nearestBudDist2 = 9999999.0f;
         currentAttrPt.nearestBudBranchIdx = -1;
         currentAttrPt.nearestBudIdx = -1;
+        //currentAttrPt.removed = false;
     }
 }
 

@@ -26,6 +26,48 @@ __device__ int gridIndex3Dto1D(int x, int y, int z, int gridResolution) {
     return z + y * gridResolution + x * gridResolution * gridResolution;
 }
 
+__global__ void kernMarkAttractorPointsAsRemoved(Bud* dev_buds, const glm::vec3 gridMin, const int gridResolution, const float inverseCellWidth, const int numBuds,
+    AttractorPoint* dev_attrPts_memCoherent, const int numAttractorPoints, int* dev_mutex, int* gridCellStartIndices,
+    int* gridCellEndIndices) {
+    int index = threadIdx.x + blockIdx.x * blockDim.x;
+    if (index >= numBuds) {
+        return;
+    }
+    Bud& currentBud = dev_buds[index];
+
+    const glm::vec3 budPosLocalToGrid = currentBud.point - gridMin;
+    const glm::vec3 index3D = glm::floor(budPosLocalToGrid * inverseCellWidth);
+    const int lookupRadius = (int)glm::ceil(3.74165738677f * currentBud.internodeLength * inverseCellWidth); // sqrt(14) as used in space col nearby point lookup
+
+    if (currentBud.internodeLength > 0.0f && currentBud.fate == DORMANT) {
+        for (int x = -lookupRadius; x <= lookupRadius; ++x) {
+            for (int y = -lookupRadius; y <= lookupRadius; ++y) {
+                for (int z = -lookupRadius; z <= lookupRadius; ++z) {
+                    const glm::vec3 currentGridIndex = index3D + glm::vec3(x, y, z);
+
+                    if (((((int)currentGridIndex.x) >= 0 && ((int)currentGridIndex.x) < gridResolution) &&
+                        (((int)currentGridIndex.y) >= 0 && ((int)currentGridIndex.y) < gridResolution)) &&
+                        (((int)currentGridIndex.z) >= 0 && ((int)currentGridIndex.z) < gridResolution)) {
+                        int index1D = gridIndex3Dto1D(currentGridIndex.x, currentGridIndex.y, currentGridIndex.z, gridResolution);
+                        for (int g = gridCellStartIndices[index1D]; g <= gridCellEndIndices[index1D]; ++g) {
+                            if (g < 0) { break; }
+                            AttractorPoint& currentAttrPt = dev_attrPts_memCoherent[g];
+                            glm::vec3 budToPtDir = currentAttrPt.point - currentBud.point;
+                            const float budToPtDist2 = glm::length2(budToPtDir);
+                            budToPtDir = glm::normalize(budToPtDir);
+                            const float dotProd = glm::dot(budToPtDir, currentBud.naturalGrowthDir);
+                            const float budToPtDist = glm::length2(currentAttrPt.point - currentBud.point);
+                            if (budToPtDist < 5.1f * currentBud.internodeLength * currentBud.internodeLength) { // ~2x internode length - use distance squared
+                                currentAttrPt.removed = true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 // Note: this implementation uses the "nearestBudIdx" field differently than the CPU implementation. This is because on the GPU, we don't
 // have access to the Tree's "branches" vector, so we just make the bud idx the index in the one big array of buds, not the index in the vector
 // of buds for a certain branch.
@@ -36,45 +78,31 @@ __global__ void kernSetNearestBudForAttractorPoints(Bud* dev_buds, const glm::ve
     if (index >= numBuds) {
         return;
     }
-    //printf("line11 %d", index);
     Bud& currentBud = dev_buds[index];
     
-    //printf("line12 %d", index);
     const glm::vec3 budPosLocalToGrid = currentBud.point - gridMin;
-    //printf("line13\n");
     const glm::vec3 index3D = glm::floor(budPosLocalToGrid * inverseCellWidth);
-    //printf("line14\n");
-    //printf("index3D.x: %f", index3D.x);
-    //printf("index3D.y: %f", index3D.y);
-    //printf("index3D.z: %f\n", index3D.z);
+    const int lookupRadius = (int)glm::ceil(3.74165738677f * currentBud.internodeLength * inverseCellWidth); // sqrt(14) as used below
 
     if (currentBud.internodeLength > 0.0f && currentBud.fate == DORMANT) {
-        //printf("line15\n");
-        for (int x = -1; x <= 1; ++x) {
-            //printf("line16\n");
-            for (int y = -1; y <= 1; ++y) {
-                //printf("line17\n");
-                for (int z = -1; z <= 1; ++z) {
-                    //printf("line18\n");
+        for (int x = -lookupRadius; x <= lookupRadius; ++x) {
+            for (int y = -lookupRadius; y <= lookupRadius; ++y) {
+                for (int z = -lookupRadius; z <= lookupRadius; ++z) {
                     const glm::vec3 currentGridIndex = index3D + glm::vec3(x, y, z);
 
-                    //printf("line19\n");
                     if (((((int)currentGridIndex.x) >= 0 && ((int)currentGridIndex.x) < gridResolution) &&
                         (((int)currentGridIndex.y) >= 0 && ((int)currentGridIndex.y) < gridResolution)) &&
                         (((int)currentGridIndex.z) >= 0 && ((int)currentGridIndex.z) < gridResolution)) {
-                        //printf("line120\n");
                         int index1D = gridIndex3Dto1D(currentGridIndex.x, currentGridIndex.y, currentGridIndex.z, gridResolution);
                         for (int g = gridCellStartIndices[index1D]; g <= gridCellEndIndices[index1D]; ++g) {
-                            //printf("%d\n", g);
                             if (g < 0) { break; }
-                            //printf("%d\n", g);
                             AttractorPoint& currentAttrPt = dev_attrPts_memCoherent[g];
+                            if (currentAttrPt.removed) { break; }
                             glm::vec3 budToPtDir = currentAttrPt.point - currentBud.point;
                             const float budToPtDist2 = glm::length2(budToPtDir);
                             budToPtDir = glm::normalize(budToPtDir);
                             const float dotProd = glm::dot(budToPtDir, currentBud.naturalGrowthDir);
                             if (budToPtDist2 < (14.0f * currentBud.internodeLength * currentBud.internodeLength) && dotProd > std::abs(COS_THETA_SMALL)) {
-                                //printf("Got a point\n");
                                 int* mutex = dev_mutex + g;
                                 bool isSet = false;
                                 do {
@@ -94,29 +122,6 @@ __global__ void kernSetNearestBudForAttractorPoints(Bud* dev_buds, const glm::ve
             }
         }
     }
-
-
-    /*for (int ap = 0; ap < numAttractorPoints; ++ap) {
-        AttractorPoint& currentAttrPt = dev_attrPts[ap];
-        glm::vec3 budToPtDir = currentAttrPt.point - currentBud.point;
-        const float budToPtDist2 = glm::length2(budToPtDir);
-        budToPtDir = glm::normalize(budToPtDir);
-        const float dotProd = glm::dot(budToPtDir, currentBud.naturalGrowthDir);
-        if (budToPtDist2 < (14.0f * currentBud.internodeLength * currentBud.internodeLength) && dotProd > std::abs(COS_THETA_SMALL)) {
-            int* mutex = dev_mutex + ap;
-            bool isSet = false;
-            do {
-                isSet = (atomicCAS(mutex, 0, 1) == 0);
-                if (isSet) {
-                    if (budToPtDist2 < currentAttrPt.nearestBudDist2) {
-                        currentAttrPt.nearestBudDist2 = budToPtDist2;
-                        currentAttrPt.nearestBudIdx = index;
-                }
-                *mutex = 0;
-                }
-            } while (!isSet);
-        }
-    }*/
 }
 
 __global__ void kernSpaceCol(Bud* dev_buds, const glm::vec3 gridMin, const int gridResolution, const float inverseCellWidth, const int numBuds,
@@ -127,36 +132,27 @@ __global__ void kernSpaceCol(Bud* dev_buds, const glm::vec3 gridMin, const int g
         return;
     }
     
-    //printf("line21\n");
     Bud& currentBud = dev_buds[index];
     
-    //printf("line22\n");
     const glm::vec3 budPosLocalToGrid = currentBud.point - gridMin;
-    //printf("line23\n");
     const glm::vec3 index3D = floor(budPosLocalToGrid * inverseCellWidth);
-    //printf("line24\n");
+    const int lookupRadius = (int)glm::ceil(3.74165738677f * currentBud.internodeLength * inverseCellWidth); // sqrt(14) as used below
 
     // Space Colonization
     if (currentBud.internodeLength > 0.0f && currentBud.fate == DORMANT) {
-        //printf("line25\n");
-        for (int x = -1; x <= 1; ++x) {
-            //printf("line26\n");
-            for (int y = -1; y <= 1; ++y) {
-                //printf("line27\n");
-                for (int z = -1; z <= 1; ++z) {
-                    //printf("line28\n");
+        for (int x = -lookupRadius; x <= lookupRadius; ++x) {
+            for (int y = -lookupRadius; y <= lookupRadius; ++y) {
+                for (int z = -lookupRadius; z <= lookupRadius; ++z) {
                     const glm::vec3 currentGridIndex = index3D + glm::vec3(x, y, z);
-                    //printf("line29\n");
 
                     if (((((int)currentGridIndex.x) >= 0 && ((int)currentGridIndex.x) < gridResolution) &&
                         (((int)currentGridIndex.y) >= 0 && ((int)currentGridIndex.y) < gridResolution)) &&
                         (((int)currentGridIndex.z) >= 0 && ((int)currentGridIndex.z) < gridResolution)) {
-                        //printf("line210\n");
                         int index1D = gridIndex3Dto1D(currentGridIndex.x, currentGridIndex.y, currentGridIndex.z, gridResolution);
-                        //printf("line211\n");
                         for (int g = gridCellStartIndices[index1D]; g <= gridCellEndIndices[index1D]; ++g) {
                             if (g < 0) break;
                             const AttractorPoint& currentAttrPt = dev_attrPts_memCoherent[g];
+                            if (currentAttrPt.removed) { break; }
                             glm::vec3 budToPtDir = currentAttrPt.point - currentBud.point;
                             const float budToPtDist2 = glm::length2(budToPtDir);
                             budToPtDir = glm::normalize(budToPtDir);
@@ -174,23 +170,7 @@ __global__ void kernSpaceCol(Bud* dev_buds, const glm::vec3 gridMin, const int g
             }
         }
     }
-
-    /*for (int ap = 0; ap < numAttractorPoints; ++ap) {
-        AttractorPoint& currentAttrPt = dev_attrPts[ap];
-        glm::vec3 budToPtDir = currentAttrPt.point - currentBud.point; // Use current axillary or terminal bud
-        const float budToPtDist2 = glm::length2(budToPtDir);
-        budToPtDir = glm::normalize(budToPtDir);
-        const float dotProd = glm::dot(budToPtDir, currentBud.naturalGrowthDir);
-        if (budToPtDist2 < (14.0f * currentBud.internodeLength * currentBud.internodeLength) && dotProd > std::abs(COS_THETA_SMALL)) {
-            if (currentAttrPt.nearestBudIdx == index) {
-                currentBud.optimalGrowthDir += budToPtDir;
-                ++currentBud.numNearbyAttrPts;
-                currentBud.environmentQuality = 1.0f;
-            }
-        }
-    }*/
     currentBud.optimalGrowthDir = currentBud.numNearbyAttrPts > 0 ? glm::normalize(currentBud.optimalGrowthDir) : glm::vec3(0.0f);
-    //printf("Optimal Growth Dir: %f, %f, %f", currentBud.optimalGrowthDir.x, currentBud.optimalGrowthDir.y, currentBud.optimalGrowthDir.z);
 }
 
 // Uniform Grid Implementation functions
@@ -346,6 +326,11 @@ cudaError_t RunSpaceColonizationKernel(Bud* buds, const int numBuds, AttractorPo
     
     checkCUDAErrorWithLine("Before Compute Indices");
 
+    kernMarkAttractorPointsAsRemoved << < fullBlocksPerGrid_Buds, blockSize >> > (dev_buds, gridMin, gridSideCount, gridInverseCellWidth, numBuds, dev_attrPts_memCoherent,
+                                                                                  numAttractorPoints, dev_mutex, dev_gridCellStartIndices, dev_gridCellEndIndices);
+
+    cudaDeviceSynchronize();
+
     kernComputeIndices << <fullBlocksPerGrid_AttrPts, blockSize >> > (numAttractorPoints, gridSideCount, gridMin, gridInverseCellWidth, dev_attrPts, dev_attrPtIndices, dev_gridCellIndices);
 
     cudaDeviceSynchronize();
@@ -359,7 +344,6 @@ cudaError_t RunSpaceColonizationKernel(Bud* buds, const int numBuds, AttractorPo
 
     // Sorting with thrust
     thrust::sort_by_key(dev_thrust_gridcell_indices, dev_thrust_gridcell_indices + numAttractorPoints, dev_thrust_attrpt_indices);
-
 
     cudaDeviceSynchronize();
 

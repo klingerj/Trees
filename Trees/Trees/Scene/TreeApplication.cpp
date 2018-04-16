@@ -19,6 +19,7 @@ void TreeApplication::IterateSelectedTreeInSelectedAttractorPointCloud() {
 
 void TreeApplication::RegrowSelectedTreeInSelectedAttractorPointCloud() {
     if (currentlySelectedTreeIndex != -1 && currentlySelectedAttractorPointCloudIndex != -1) {
+        auto start = std::chrono::system_clock::now();
         #ifdef ENABLE_DEBUG_OUTPUT
         auto start = std::chrono::system_clock::now();
         #endif
@@ -32,6 +33,10 @@ void TreeApplication::RegrowSelectedTreeInSelectedAttractorPointCloud() {
         std::time_t end_time = std::chrono::system_clock::to_time_t(end);
         std::cout << "Total Elapsed time for Tree Generation: " << elapsed_seconds.count() << "s\n";
         #endif
+        auto end = std::chrono::system_clock::now();
+        std::chrono::duration<double> elapsed_seconds = end - start;
+        std::time_t end_time = std::chrono::system_clock::to_time_t(end);
+        std::cout << "Total Elapsed time for Tree Generation: " << elapsed_seconds.count() << "s\n";
         sceneTrees[currentlySelectedTreeIndex].create();
     }
 }
