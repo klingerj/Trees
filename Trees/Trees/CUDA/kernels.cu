@@ -35,7 +35,7 @@ __device__ int gridIndex3Dto1D(int x, int y, int z, int gridResolution) {
     return z + y * gridResolution + x * gridResolution * gridResolution;
 }
 
-/*__global__ void kernMarkAttractorPointsAsRemoved(Bud* dev_buds, const glm::vec3 gridMin, const int gridResolution, const float inverseCellWidth, const int numBuds,
+__global__ void kernMarkAttractorPointsAsRemoved(Bud* dev_buds, const glm::vec3 gridMin, const int gridResolution, const float inverseCellWidth, const int numBuds,
     AttractorPoint* dev_attrPts_memCoherent, const int numAttractorPoints, int* dev_mutex, int* gridCellStartIndices,
     int* gridCellEndIndices) {
     int index = threadIdx.x + blockIdx.x * blockDim.x;
@@ -75,7 +75,7 @@ __device__ int gridIndex3Dto1D(int x, int y, int z, int gridResolution) {
             }
         }
     }
-}*/
+}
 
 // Note: this implementation uses the "nearestBudIdx" field differently than the CPU implementation. This is because on the GPU, we don't
 // have access to the Tree's "branches" vector, so we just make the bud idx the index in the one big array of buds, not the index in the vector
@@ -108,13 +108,15 @@ __global__ void kernSetNearestBudForAttractorPoints(Bud* dev_buds, const glm::ve
                             AttractorPoint& currentAttrPt = dev_attrPts_memCoherent[g];
                             glm::vec3 budToPtDir = currentAttrPt.point - currentBud.point;
                             const float budToPtDist2 = glm::length2(budToPtDir);
-                            if (budToPtDist2 < 5.1f * currentBud.internodeLength * currentBud.internodeLength) { // ~2x internode length - use distance squared
+                            /*if (budToPtDist2 < 5.1f * currentBud.internodeLength * currentBud.internodeLength) { // ~2x internode length - use distance squared
                                 currentAttrPt.removed = true;
+                                printf("Removing a point\n");
                             }
-                            if (currentAttrPt.removed) { break; }
+                            if (currentAttrPt.removed) { break; }*/
                             budToPtDir = glm::normalize(budToPtDir);
                             const float dotProd = glm::dot(budToPtDir, currentBud.naturalGrowthDir);
                             if (budToPtDist2 < (14.0f * currentBud.internodeLength * currentBud.internodeLength) && dotProd > std::abs(COS_THETA_SMALL)) {
+                                printf("Growing toward a point\n");
                                 int* mutex = dev_mutex + g;
                                 bool isSet = false;
                                 do {
@@ -245,8 +247,23 @@ __global__ void kernResetAttractorPointRemovalState(AttractorPoint* attractorPoi
     attractorPoints[index].removed = false;
 }
 
+__global__ void kernResetAttractorPointSpaceColState(AttractorPoint* attractorPoints, AttractorPoint* attractorPoints_memCoherent, const int numAttrPts) {
+    int index = threadIdx.x + blockIdx.x * blockDim.x;
+    if (index >= numAttrPts) {
+        return;
+    }
+    AttractorPoint& currAttrPt = attractorPoints[index];
+    currAttrPt.nearestBudDist2 = 9999999.0f;
+    currAttrPt.nearestBudBranchIdx = -1;
+    currAttrPt.nearestBudIdx = -1;
+    AttractorPoint& currAttrPt_memCoherent = attractorPoints_memCoherent[index];
+    currAttrPt_memCoherent.nearestBudDist2 = 9999999.0f;
+    currAttrPt_memCoherent.nearestBudBranchIdx = -1;
+    currAttrPt_memCoherent.nearestBudIdx = -1;
+}
+
 cudaError_t RunSpaceColonizationKernel(Bud* buds, const int numBuds, AttractorPoint* attractorPoints, const int numAttractorPoints,
-                                       const int gridSideCount, const int numTotalGridCells, const glm::vec3& gridMin, const float gridCellWidth, bool& reconstructUniformGrid, bool resetAttrPtState) {
+                                       const int gridSideCount, const int numTotalGridCells, const glm::vec3& gridMin, const float gridCellWidth, bool& reconstructUniformGrid, bool& resetAttrPtState) {
     cudaError_t cudaStatus;
 
     Bud* dev_buds = 0;
@@ -262,7 +279,7 @@ cudaError_t RunSpaceColonizationKernel(Bud* buds, const int numBuds, AttractorPo
     checkCUDAErrorWithLine("cudaSetDevice failed! Do you have a CUDA-capable GPU installed?");
 
     // Create the uniform grid if it hasn't been created / needs to be recreated
-    if (reconstructUniformGrid) {
+    if (reconstructUniformGrid | resetAttrPtState) {
         // Free old grid info
         cudaFree(dev_attrPts);
         cudaFree(dev_attrPts_memCoherent);
@@ -314,15 +331,17 @@ cudaError_t RunSpaceColonizationKernel(Bud* buds, const int numBuds, AttractorPo
     cudaStatus = cudaMemcpy(dev_buds, buds, numBuds * sizeof(Bud), cudaMemcpyHostToDevice);
     checkCUDAErrorWithLine("cudaMemcpy dev_buds failed!");
 
+    kernResetAttractorPointSpaceColState << < fullBlocksPerGrid_AttrPts, blockSize >> > (dev_attrPts, dev_attrPts_memCoherent, numAttractorPoints);
+
     if (resetAttrPtState) {
         kernResetAttractorPointRemovalState << < fullBlocksPerGrid_AttrPts, blockSize >> > (dev_attrPts, dev_attrPts_memCoherent, numAttractorPoints);
-        resetAttrPtState = false;
     }
 
-    /*kernMarkAttractorPointsAsRemoved << < fullBlocksPerGrid_Buds, blockSize >> > (dev_buds, gridMin, gridSideCount, gridInverseCellWidth, numBuds, dev_attrPts_memCoherent,
-                                                                                  numAttractorPoints, dev_mutex, dev_gridCellStartIndices, dev_gridCellEndIndices);*/
+    // this got merged into the first space col kernel farter down in this function
+    kernMarkAttractorPointsAsRemoved << < fullBlocksPerGrid_Buds, blockSize >> > (dev_buds, gridMin, gridSideCount, gridInverseCellWidth, numBuds, dev_attrPts_memCoherent,
+                                                                                  numAttractorPoints, dev_mutex, dev_gridCellStartIndices, dev_gridCellEndIndices);
 
-    if (reconstructUniformGrid) {
+    if (reconstructUniformGrid | resetAttrPtState) {
         kernComputeIndices << <fullBlocksPerGrid_AttrPts, blockSize >> > (numAttractorPoints, gridSideCount, gridMin, gridInverseCellWidth, dev_attrPts, dev_attrPtIndices, dev_gridCellIndices);
 
         checkCUDAErrorWithLine("After kernComputeIndices");
@@ -342,11 +361,12 @@ cudaError_t RunSpaceColonizationKernel(Bud* buds, const int numBuds, AttractorPo
         kernMakeDataMemoryCoherent << <fullBlocksPerGrid_AttrPts, blockSize >> > (numAttractorPoints, dev_attrPtIndices, dev_attrPts, dev_attrPts_memCoherent);
 
         checkCUDAErrorWithLine("After make data coherent");
-        reconstructUniformGrid = false;
     }
 
     kernSetNearestBudForAttractorPoints << < fullBlocksPerGrid_Buds, blockSize >> > (dev_buds, gridMin, gridSideCount, gridInverseCellWidth, numBuds, dev_attrPts_memCoherent,
                                                                                      numAttractorPoints, dev_mutex, dev_gridCellStartIndices, dev_gridCellEndIndices);
+    /*AttractorPoint pointsrealquick[10000];
+    cudaMemcpy(pointsrealquick, dev_attrPts_memCoherent, numAttractorPoints * sizeof(AttractorPoint), cudaMemcpyDeviceToHost);*/
 
     checkCUDAErrorWithLine("After space col pass 1");
 
@@ -360,6 +380,9 @@ cudaError_t RunSpaceColonizationKernel(Bud* buds, const int numBuds, AttractorPo
     checkCUDAErrorWithLine("cudaMemcpy to buds failed!");
 
     cudaFree(dev_buds);
+    printf("reconstruct grid: %d, resetAttrPtState: %d", reconstructUniformGrid, resetAttrPtState);
+    reconstructUniformGrid = false;
+    resetAttrPtState = false;
     return cudaStatus;
 }
 
@@ -374,7 +397,7 @@ void TreeApp::FreeUniformGrid() {
 
 void TreeApp::PerformSpaceColonizationParallel(Bud* buds, const int numBuds, AttractorPoint* attractorPoints, const int numAttractorPoints,
                                                const int gridSideCount, const int numTotalGridCells, const glm::vec3& gridMin, const float gridCellWidth, bool& reconstructUniformGrid,
-                                               bool resetAttrPtState) {
+                                               bool& resetAttrPtState) {
     cudaError_t cudaStatus = RunSpaceColonizationKernel(buds, numBuds, attractorPoints, numAttractorPoints, gridSideCount, numTotalGridCells, gridMin, gridCellWidth, reconstructUniformGrid, resetAttrPtState);
     checkCUDAErrorWithLine("Space colonization failed!\n");
 }

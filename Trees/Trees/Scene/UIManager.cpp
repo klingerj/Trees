@@ -32,6 +32,7 @@ void UIManager::HandleInput(TreeApplication& treeApp) {
     if (ImGui::Button("Add Attr Pt Cloud")) {
         treeApp.AddAttractorPointCloudToScene();
         treeApp.GetSelectedAttractorPointCloud().GeneratePoints(treeApp.GetTreeParameters().numAttractorPointsToGenerate);
+        treeApp.GetTreeParameters().reconstructUniformGridOnGPU = true;
     }
     if (ImGui::Button("Show/Hide Current Attr Pt Cloud")) {
         treeApp.GetSelectedAttractorPointCloud().ToggleDisplay();

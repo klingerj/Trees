@@ -175,9 +175,9 @@ public:
     // Tree Growth Functions (grouped by association)
     const std::vector<TreeBranch>& GetBranches() const { return branches; }
     void IterateGrowth(std::vector<AttractorPoint>& attractorPoints, glm::vec3& minAttrPt, glm::vec3& maxAttrPt, TreeParameters& treeParams, bool useGPU = false);
-    void PerformSpaceColonization(std::vector<AttractorPoint>& attractorPoints, glm::vec3& minAttrPt, glm::vec3& maxAttrPt, bool& reconstructUniformGrid, bool resetAttrPtState, bool useGPU);
+    void PerformSpaceColonization(std::vector<AttractorPoint>& attractorPoints, glm::vec3& minAttrPt, glm::vec3& maxAttrPt, bool& reconstructUniformGrid, bool& resetAttrPtState, bool useGPU);
     void PerformSpaceColonizationCPU(std::vector<AttractorPoint>& attractorPoints);
-    void PerformSpaceColonizationGPU(std::vector<AttractorPoint>& attractorPoints, glm::vec3& minAttrPt, glm::vec3& maxAttrPt, bool& reconstructUniformGrid, bool resetAttrPtState);
+    void PerformSpaceColonizationGPU(std::vector<AttractorPoint>& attractorPoints, glm::vec3& minAttrPt, glm::vec3& maxAttrPt, bool& reconstructUniformGrid, bool& resetAttrPtState);
     void RemoveAttractorPoints(std::vector<AttractorPoint>& attractorPoints);
 
     float ComputeQAccumRecursive(TreeBranch& branch);
@@ -190,7 +190,7 @@ public:
     float ComputeBranchRadiiRecursive(TreeBranch& branch, const TreeParameters& treeParams);
     void ComputeBranchRadii(const TreeParameters& treeParams);
 
-    void ResetState(std::vector<AttractorPoint>& attractorPoints); // Reset the state of each bud in the tree during the iterative algorithm
+    void ResetState(std::vector<AttractorPoint>& attractorPoints, bool useGPU); // Reset the state of each bud in the tree during the iterative algorithm
 
     // Mesh handling
     void LoadBranchMesh(const char* filepath) { branchMesh.LoadFromFile(filepath); }

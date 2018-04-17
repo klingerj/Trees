@@ -17,6 +17,7 @@ struct AttractorPoint {
     int nearestBudIdx; // index in the array of the bud of that branch ^^
     bool removed;
 
+    AttractorPoint() : AttractorPoint(glm::vec3(0.0f)) {}
     AttractorPoint(const glm::vec3& p) : point(p), nearestBudDist2(9999999.0f), nearestBudBranchIdx(-1), nearestBudIdx(-1), removed(false) {}
 };
 
