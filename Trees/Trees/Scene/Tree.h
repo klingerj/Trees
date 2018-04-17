@@ -54,12 +54,14 @@ struct TreeParameters {
     int numAttractorPointsToGenerate;
     bool enableDebugOutput;
     bool reconstructUniformGridOnGPU;
+    bool resetAttractorPointState;
 
     TreeParameters() :
         internodeScale(INITIAL_INTERNODE_SCALE), perceptionCosTheta(COS_THETA),
         perceptionCosThetaSmall(COS_THETA_SMALL), BHAlpha(ALPHA), BHLambda(LAMBDA), optimalGrowthDirWeight(OPTIMAL_GROWTH_DIR_WEIGHT), tropismDirWeight(TROPISM_DIR_WEIGHT),
         tropismVector(TROPISM_DIR_WEIGHT), minimumBranchRadius(MINIMUM_BRANCH_RADIUS), pipeModelExponent(PIPE_EXPONENT), maximumBranchRadius(MAXIMUM_BRANCH_RADIUS),
-        numSpaceColonizationIterations(INITIAL_NUM_ITERATIONS), numAttractorPointsToGenerate(INITIAL_NUM_ATTR_PTS), enableDebugOutput(true), reconstructUniformGridOnGPU(true) {}
+        numSpaceColonizationIterations(INITIAL_NUM_ITERATIONS), numAttractorPointsToGenerate(INITIAL_NUM_ATTR_PTS), enableDebugOutput(true), reconstructUniformGridOnGPU(true),
+        resetAttractorPointState(true) {}
 };
 
 enum BUD_FATE {
@@ -172,10 +174,10 @@ public:
 
     // Tree Growth Functions (grouped by association)
     const std::vector<TreeBranch>& GetBranches() const { return branches; }
-    void IterateGrowth(std::vector<AttractorPoint>& attractorPoints, const glm::vec3& minAttrPt, const glm::vec3& maxAttrPt, TreeParameters& treeParams, bool useGPU = false);
-    void PerformSpaceColonization(std::vector<AttractorPoint>& attractorPoints, const glm::vec3& minAttrPt, const glm::vec3& maxAttrPt, bool& reconstructUniformGrid, bool useGPU);
+    void IterateGrowth(std::vector<AttractorPoint>& attractorPoints, glm::vec3& minAttrPt, glm::vec3& maxAttrPt, TreeParameters& treeParams, bool useGPU = false);
+    void PerformSpaceColonization(std::vector<AttractorPoint>& attractorPoints, glm::vec3& minAttrPt, glm::vec3& maxAttrPt, bool& reconstructUniformGrid, bool resetAttrPtState, bool useGPU);
     void PerformSpaceColonizationCPU(std::vector<AttractorPoint>& attractorPoints);
-    void PerformSpaceColonizationGPU(std::vector<AttractorPoint>& attractorPoints, const glm::vec3& minAttrPt, const glm::vec3& maxAttrPt, bool& reconstructUniformGrid);
+    void PerformSpaceColonizationGPU(std::vector<AttractorPoint>& attractorPoints, glm::vec3& minAttrPt, glm::vec3& maxAttrPt, bool& reconstructUniformGrid, bool resetAttrPtState);
     void RemoveAttractorPoints(std::vector<AttractorPoint>& attractorPoints);
 
     float ComputeQAccumRecursive(TreeBranch& branch);

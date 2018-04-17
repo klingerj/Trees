@@ -6,8 +6,11 @@ void TreeApplication::IterateSelectedTreeInSelectedAttractorPointCloud() {
         /*#ifdef ENABLE_DEBUG_OUTPUT
         auto start = std::chrono::system_clock::now();
         #endif*/
+        bool prevState = treeParameters.resetAttractorPointState;
+        treeParameters.resetAttractorPointState = false;
         AttractorPointCloud& currentAttrPtCloud = sceneAttractorPointClouds[currentlySelectedAttractorPointCloudIndex];
         sceneTrees[currentlySelectedTreeIndex].IterateGrowth(currentAttrPtCloud.GetPointsCopy(), currentAttrPtCloud.GetMinPoint(), currentAttrPtCloud.GetMaxPoint(), treeParameters, true);
+        treeParameters.resetAttractorPointState = prevState;
         /*#ifdef ENABLE_DEBUG_OUTPUT
         auto end = std::chrono::system_clock::now();
         std::chrono::duration<double> elapsed_seconds = end - start;
@@ -30,8 +33,9 @@ void TreeApplication::RegrowSelectedTreeInSelectedAttractorPointCloud() {
         auto start = std::chrono::system_clock::now();
         #endif*/
         Tree& currentTree = sceneTrees[currentlySelectedTreeIndex];
-        AttractorPointCloud& currentAttrPtCloud = sceneAttractorPointClouds[currentlySelectedAttractorPointCloudIndex];
         currentTree.ResetTree();
+        AttractorPointCloud& currentAttrPtCloud = sceneAttractorPointClouds[currentlySelectedAttractorPointCloudIndex];
+        treeParameters.resetAttractorPointState = true;
         currentTree.IterateGrowth(currentAttrPtCloud.GetPointsCopy(), currentAttrPtCloud.GetMinPoint(), currentAttrPtCloud.GetMaxPoint(), treeParameters, true);
         /*#ifdef ENABLE_DEBUG_OUTPUT
         auto end = std::chrono::system_clock::now();

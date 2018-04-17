@@ -43,8 +43,8 @@ public:
     const std::vector<AttractorPoint>& GetPointsConst() const { return points; }
     std::vector<AttractorPoint>& GetPoints() { return points; }
     std::vector<AttractorPoint> GetPointsCopy() const { return points; }
-    const glm::vec3& GetMinPoint() const { return minPoint; }
-    const glm::vec3& GetMaxPoint() const { return maxPoint; }
+    glm::vec3& GetMinPoint() { return minPoint; }
+    glm::vec3& GetMaxPoint() { return maxPoint; }
     void GeneratePointsInUnitCube(unsigned int numPoints);
     void GeneratePoints(unsigned int numPoints);
     void AddPoints(const std::vector<AttractorPoint>& p) {

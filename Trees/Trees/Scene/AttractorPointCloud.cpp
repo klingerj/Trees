@@ -31,7 +31,7 @@ void AttractorPointCloud::GeneratePoints(unsigned int numPoints) {
     #endif
     boundingMesh.LoadFromFile("OBJs/helixRot.obj");
     for (unsigned int i = 0; i < numPoints; ++i) {
-        const glm::vec3 p = glm::vec3(dis(rng) * 2.0f, dis(rng) * 2.0f, dis(rng) * 4.0f);
+        const glm::vec3 p = glm::vec3(dis(rng) * 0.25f, dis(rng) * 0.5f, dis(rng) * 0.25f);
 
         // Intersect with mesh
         if (boundingMesh.Contains(p)) {

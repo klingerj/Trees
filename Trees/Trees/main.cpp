@@ -10,6 +10,7 @@
 #include "Scene/Globals.h"
 #include "Scene/TreeApplication.h"
 #include "Scene/UIManager.h"
+#include "CUDA/kernels.h"
 
 #include <iostream>
 #include <vector>
@@ -138,6 +139,7 @@ int main() {
     glDeleteVertexArrays(1, &VAO);
     treeApp.DestroyTrees();
     treeApp.DestroyAttractorPointClouds();
+    TreeApp::FreeUniformGrid(); // Free 
 
     glfwTerminate();
     return 0;

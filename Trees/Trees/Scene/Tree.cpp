@@ -44,7 +44,7 @@ void TreeBranch::AddAxillaryBuds(const Bud& sourceBud, const int numBuds, const 
 
 /// Tree Class Functions
 
-void Tree::IterateGrowth(std::vector<AttractorPoint>& attractorPoints, const glm::vec3& minAttrPt, const glm::vec3& maxAttrPt, TreeParameters& treeParams, bool useGPU) {
+void Tree::IterateGrowth(std::vector<AttractorPoint>& attractorPoints, glm::vec3& minAttrPt, glm::vec3& maxAttrPt, TreeParameters& treeParams, bool useGPU) {
     
     ResetState(attractorPoints);               // Prepare all data to be iterated over again, e.g. set accumQ / resourceBH for all buds back to 0
     
@@ -57,7 +57,7 @@ void Tree::IterateGrowth(std::vector<AttractorPoint>& attractorPoints, const glm
         #ifdef ENABLE_DEBUG_OUTPUT
         auto start = std::chrono::system_clock::now();
         #endif
-        PerformSpaceColonization(attractorPoints, minAttrPt, maxAttrPt, treeParams.reconstructUniformGridOnGPU, useGPU); // 1. Compute Q (presence of space/light) and optimal growth direction using space colonization
+        PerformSpaceColonization(attractorPoints, minAttrPt, maxAttrPt, treeParams.reconstructUniformGridOnGPU, treeParams.resetAttractorPointState, useGPU); // 1. Compute Q (presence of space/light) and optimal growth direction using space colonization
         #ifdef ENABLE_DEBUG_OUTPUT
         auto end = std::chrono::system_clock::now();
         std::chrono::duration<double> elapsed_seconds = end - start;
@@ -114,7 +114,7 @@ void Tree::IterateGrowth(std::vector<AttractorPoint>& attractorPoints, const glm
     #endif
 }
 
-void Tree::PerformSpaceColonization(std::vector<AttractorPoint>& attractorPoints, const glm::vec3& minAttrPt, const glm::vec3& maxAttrPt, bool& reconstructUniformGrid, bool useGPU) {
+void Tree::PerformSpaceColonization(std::vector<AttractorPoint>& attractorPoints, glm::vec3& minAttrPt, glm::vec3& maxAttrPt, bool& reconstructUniformGrid, bool resetAttrPtState, bool useGPU) {
     /*#ifdef ENABLE_DEBUG_OUTPUT
     auto start = std::chrono::system_clock::now();
     #endif*/
@@ -132,7 +132,7 @@ void Tree::PerformSpaceColonization(std::vector<AttractorPoint>& attractorPoints
     auto start = std::chrono::system_clock::now();
     #endif
     if (useGPU) {
-        PerformSpaceColonizationGPU(attractorPoints, minAttrPt, maxAttrPt, reconstructUniformGrid);
+        PerformSpaceColonizationGPU(attractorPoints, minAttrPt, maxAttrPt, reconstructUniformGrid, resetAttrPtState);
     } else {
         RemoveAttractorPoints(attractorPoints);
         PerformSpaceColonizationCPU(attractorPoints);
@@ -206,7 +206,7 @@ void Tree::PerformSpaceColonizationCPU(std::vector<AttractorPoint>& attractorPoi
     }
 }
 
-void Tree::PerformSpaceColonizationGPU(std::vector<AttractorPoint>& attractorPoints, const glm::vec3& minAttrPt, const glm::vec3& maxAttrPt, bool& reconstructUniformGrid) {
+void Tree::PerformSpaceColonizationGPU(std::vector<AttractorPoint>& attractorPoints, glm::vec3& minAttrPt, glm::vec3& maxAttrPt, bool& reconstructUniformGrid, bool resetAttrPtState) {
     // Assemble array of buds
     std::vector<Bud> buds = std::vector<Bud>(); // TODO replace this vector
     for (unsigned int br = 0; br < (unsigned int)branches.size(); ++br) {
@@ -222,28 +222,46 @@ void Tree::PerformSpaceColonizationGPU(std::vector<AttractorPoint>& attractorPoi
     }
 
     // Need to make sure that the grid bounds contain all currently existing buds
-    glm::vec3 minGridPoint = minAttrPt;
-    glm::vec3 maxGridPoint = maxAttrPt;
+    glm::vec3& minGridPoint = minAttrPt;
+    glm::vec3& maxGridPoint = maxAttrPt;
     for (unsigned int br = 0; br < (unsigned int)branches.size(); ++br) {
         const std::vector<Bud>& branchBuds = branches[br].GetBuds();
         for (unsigned int bu = 0; bu < branchBuds.size(); ++bu) {
             const Bud& currentBud = branchBuds[bu];
-            minGridPoint.x = std::min(minGridPoint.x, currentBud.point.x);
-            minGridPoint.y = std::min(minGridPoint.y, currentBud.point.y);
-            minGridPoint.z = std::min(minGridPoint.z, currentBud.point.z);
-            maxGridPoint.x = std::max(maxGridPoint.x, currentBud.point.x);
-            maxGridPoint.y = std::max(maxGridPoint.y, currentBud.point.y);
-            maxGridPoint.z = std::max(maxGridPoint.z, currentBud.point.z);
+            if (currentBud.point.x < minGridPoint.x) {
+                minGridPoint.x = currentBud.point.x;
+                reconstructUniformGrid = true;
+            }
+            if (currentBud.point.y < minGridPoint.y) {
+                minGridPoint.y = currentBud.point.y;
+                reconstructUniformGrid = true;
+            }
+            if (currentBud.point.z < minGridPoint.z) {
+                minGridPoint.z = currentBud.point.z;
+                reconstructUniformGrid = true;
+            }
+            if (currentBud.point.x > maxGridPoint.x) {
+                maxGridPoint.x = currentBud.point.x;
+                reconstructUniformGrid = true;
+            }
+            if (currentBud.point.y > maxGridPoint.y) {
+                maxGridPoint.y = currentBud.point.y;
+                reconstructUniformGrid = true;
+            }
+            if (currentBud.point.z > maxGridPoint.z) {
+                maxGridPoint.z = currentBud.point.z;
+                reconstructUniformGrid = true;
+            }
         }
     }
-
+    //reconstructUniformGrid = true; // test remove me
+    //std::cout << "reconstruct grid after changing points: " << reconstructUniformGrid << std::endl;
     const int maxGridSideLength = (int)std::ceil(std::abs(std::max(std::max(maxGridPoint.x - minGridPoint.x, maxGridPoint.y - minGridPoint.y), maxGridPoint.z - minGridPoint.z)));
     const float gridCellWidth = maxGridSideLength / (float)UNIFORM_GRID_CELL_COUNT;
     const int numTotalGridCells = UNIFORM_GRID_CELL_COUNT * UNIFORM_GRID_CELL_COUNT * UNIFORM_GRID_CELL_COUNT;
 
     TreeApp::PerformSpaceColonizationParallel(budArray, (int)buds.size(), attractorPoints.data(), (int)attractorPoints.size(),
-                                              UNIFORM_GRID_CELL_COUNT, numTotalGridCells, minGridPoint, gridCellWidth, reconstructUniformGrid);
-
+                                              UNIFORM_GRID_CELL_COUNT, numTotalGridCells, minGridPoint, gridCellWidth, reconstructUniformGrid, resetAttrPtState);
     // Copy bud info back to the tree
     int budCounter = 0;
     for (unsigned int br = 0; br < (unsigned int)branches.size(); ++br) {
@@ -419,7 +437,6 @@ void Tree::ResetState(std::vector<AttractorPoint>& attractorPoints) {
         currentAttrPt.nearestBudDist2 = 9999999.0f;
         currentAttrPt.nearestBudBranchIdx = -1;
         currentAttrPt.nearestBudIdx = -1;
-        //currentAttrPt.removed = false;
     }
 }
 
