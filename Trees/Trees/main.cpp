@@ -42,9 +42,8 @@ void mouse_click_callback(GLFWwindow* window, int button, int action, int mods) 
         }
         isSketching = enableSketchMode;
     } else if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE) {
-        if (enableSketchMode && isSketching) {
-            isSketching = false;
-        }
+        enableSketchMode = false;
+        isSketching = false;
     }
     std::cout << "isSketching: " << isSketching << ", enableSketchMode: " << enableSketchMode << std::endl;
 }
@@ -74,11 +73,6 @@ void processInput(GLFWwindow *window) {
             enableSketchMode = true;
             std::cout << "isSketching: " << isSketching << ", enableSketchMode: " << enableSketchMode << std::endl;
         }
-    } else if (glfwGetKey(window, GLFW_KEY_ENTER)) {
-        if (enableSketchMode) {
-            enableSketchMode = false;
-            std::cout << "isSketching: " << isSketching << ", enableSketchMode: " << enableSketchMode << std::endl;
-       }
     }
 }
 
