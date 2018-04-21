@@ -8,8 +8,9 @@
 class TreeApplication {
 private:
     TreeParameters treeParameters;
-    std::vector<Tree> sceneTrees;
-    std::vector<AttractorPointCloud> sceneAttractorPointClouds;
+    std::vector<Tree> sceneTrees; // trees in the scene
+    std::vector<AttractorPointCloud> sceneAttractorPointClouds; // attractor point clouds in the scene
+    std::vector<glm::vec2> currentSketchPoints; // the sketch points in screen space of the current sketch stroke
 
     // App management variables
     int currentlySelectedTreeIndex;

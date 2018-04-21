@@ -111,12 +111,11 @@ __global__ void kernSetNearestBudForAttractorPoints(Bud* dev_buds, const glm::ve
                             /*if (budToPtDist2 < 5.1f * currentBud.internodeLength * currentBud.internodeLength) { // ~2x internode length - use distance squared
                                 currentAttrPt.removed = true;
                                 printf("Removing a point\n");
-                            }
-                            if (currentAttrPt.removed) { break; }*/
+                            }*/
+                            if (currentAttrPt.removed) { continue; }
                             budToPtDir = glm::normalize(budToPtDir);
                             const float dotProd = glm::dot(budToPtDir, currentBud.naturalGrowthDir);
                             if (budToPtDist2 < (14.0f * currentBud.internodeLength * currentBud.internodeLength) && dotProd > std::abs(COS_THETA_SMALL)) {
-                                printf("Growing toward a point\n");
                                 int* mutex = dev_mutex + g;
                                 bool isSet = false;
                                 do {
@@ -166,7 +165,7 @@ __global__ void kernSpaceCol(Bud* dev_buds, const glm::vec3 gridMin, const int g
                         for (int g = gridCellStartIndices[index1D]; g <= gridCellEndIndices[index1D]; ++g) {
                             if (g < 0) break;
                             const AttractorPoint& currentAttrPt = dev_attrPts_memCoherent[g];
-                            if (currentAttrPt.removed) { break; }
+                            if (currentAttrPt.removed) { continue; }
                             glm::vec3 budToPtDir = currentAttrPt.point - currentBud.point;
                             const float budToPtDist2 = glm::length2(budToPtDir);
                             budToPtDir = glm::normalize(budToPtDir);
@@ -337,10 +336,6 @@ cudaError_t RunSpaceColonizationKernel(Bud* buds, const int numBuds, AttractorPo
         kernResetAttractorPointRemovalState << < fullBlocksPerGrid_AttrPts, blockSize >> > (dev_attrPts, dev_attrPts_memCoherent, numAttractorPoints);
     }
 
-    // this got merged into the first space col kernel farter down in this function
-    kernMarkAttractorPointsAsRemoved << < fullBlocksPerGrid_Buds, blockSize >> > (dev_buds, gridMin, gridSideCount, gridInverseCellWidth, numBuds, dev_attrPts_memCoherent,
-                                                                                  numAttractorPoints, dev_mutex, dev_gridCellStartIndices, dev_gridCellEndIndices);
-
     if (reconstructUniformGrid | resetAttrPtState) {
         kernComputeIndices << <fullBlocksPerGrid_AttrPts, blockSize >> > (numAttractorPoints, gridSideCount, gridMin, gridInverseCellWidth, dev_attrPts, dev_attrPtIndices, dev_gridCellIndices);
 
@@ -363,10 +358,13 @@ cudaError_t RunSpaceColonizationKernel(Bud* buds, const int numBuds, AttractorPo
         checkCUDAErrorWithLine("After make data coherent");
     }
 
+    // this got merged into the first space col kernel farter down in this function
+    // no it didn't
+    kernMarkAttractorPointsAsRemoved << < fullBlocksPerGrid_Buds, blockSize >> > (dev_buds, gridMin, gridSideCount, gridInverseCellWidth, numBuds, dev_attrPts_memCoherent,
+                                                                                  numAttractorPoints, dev_mutex, dev_gridCellStartIndices, dev_gridCellEndIndices);
+
     kernSetNearestBudForAttractorPoints << < fullBlocksPerGrid_Buds, blockSize >> > (dev_buds, gridMin, gridSideCount, gridInverseCellWidth, numBuds, dev_attrPts_memCoherent,
                                                                                      numAttractorPoints, dev_mutex, dev_gridCellStartIndices, dev_gridCellEndIndices);
-    /*AttractorPoint pointsrealquick[10000];
-    cudaMemcpy(pointsrealquick, dev_attrPts_memCoherent, numAttractorPoints * sizeof(AttractorPoint), cudaMemcpyDeviceToHost);*/
 
     checkCUDAErrorWithLine("After space col pass 1");
 
@@ -380,7 +378,7 @@ cudaError_t RunSpaceColonizationKernel(Bud* buds, const int numBuds, AttractorPo
     checkCUDAErrorWithLine("cudaMemcpy to buds failed!");
 
     cudaFree(dev_buds);
-    printf("reconstruct grid: %d, resetAttrPtState: %d", reconstructUniformGrid, resetAttrPtState);
+    //printf("reconstruct grid: %d, resetAttrPtState: %d", reconstructUniformGrid, resetAttrPtState);
     reconstructUniformGrid = false;
     resetAttrPtState = false;
     return cudaStatus;

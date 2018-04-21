@@ -118,7 +118,7 @@ void Tree::PerformSpaceColonization(std::vector<AttractorPoint>& attractorPoints
     /*#ifdef ENABLE_DEBUG_OUTPUT
     auto start = std::chrono::system_clock::now();
     #endif*/
-    RemoveAttractorPoints(attractorPoints);
+    //RemoveAttractorPoints(attractorPoints);
     /*#ifdef ENABLE_DEBUG_OUTPUT
     auto end = std::chrono::system_clock::now();
     std::chrono::duration<double> elapsed_seconds = end - start;
@@ -255,7 +255,7 @@ void Tree::PerformSpaceColonizationGPU(std::vector<AttractorPoint>& attractorPoi
         }
     }
     reconstructUniformGrid = true; // why does this FIX ITTTT
-    std::cout << "reconstruct grid after changing points: " << reconstructUniformGrid << std::endl;
+    //std::cout << "reconstruct grid after changing points: " << reconstructUniformGrid << std::endl;
     const int maxGridSideLength = (int)std::ceil(std::abs(std::max(std::max(maxGridPoint.x - minGridPoint.x, maxGridPoint.y - minGridPoint.y), maxGridPoint.z - minGridPoint.z)));
     const float gridCellWidth = maxGridSideLength / (float)UNIFORM_GRID_CELL_COUNT;
     const int numTotalGridCells = UNIFORM_GRID_CELL_COUNT * UNIFORM_GRID_CELL_COUNT * UNIFORM_GRID_CELL_COUNT;

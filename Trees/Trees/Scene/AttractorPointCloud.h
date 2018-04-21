@@ -2,6 +2,7 @@
 
 #include <vector>
 #include "glm/glm.hpp"
+#include "glm/gtx/norm.hpp"
 #include "pcg_random.hpp"
 #include <chrono>
 #include <ctime>
@@ -48,9 +49,8 @@ public:
     glm::vec3& GetMaxPoint() { return maxPoint; }
     void GeneratePointsInUnitCube(unsigned int numPoints);
     void GeneratePoints(unsigned int numPoints);
-    void AddPoints(const std::vector<AttractorPoint>& p) {
-        points.insert(points.begin(), p.begin(), p.end());
-    }
+    void GeneratePoints(unsigned int numPoints, const std::vector<glm::vec3>& sketchPoints, const float brushRadius);
+    void AddPoints(const std::vector<AttractorPoint>& p) { points.insert(points.begin(), p.begin(), p.end()); }
     static AttractorPointCloud UnionAttractorPointClouds(const AttractorPointCloud& ap1, const AttractorPointCloud& ap2) {
         AttractorPointCloud unionCloud;
         unionCloud.AddPoints(ap1.points);
