@@ -55,13 +55,12 @@ void AttractorPointCloud::GeneratePoints(unsigned int numPoints) {
 }
 
 // Generate points 
-void AttractorPointCloud::GeneratePoints(unsigned int numPoints, const std::vector<glm::vec3>& sketchPoints, const float brushRadius) {
+void AttractorPointCloud::GeneratePointsGivenSketchPoints(unsigned int numPoints, const std::vector<glm::vec3>& sketchPoints, const float brushRadius) {
     #ifdef ENABLE_DEBUG_OUTPUT
     auto start = std::chrono::system_clock::now();
     #endif
-    boundingMesh.LoadFromFile("OBJs/helixRot.obj");
     for (unsigned int i = 0; i < numPoints; ++i) {
-        const glm::vec3 p = glm::vec3(dis(rng) * 2.0f, dis(rng) * 2.0f, dis(rng) * 4.0f); // these scales are hard coded for the helix mesh
+        const glm::vec3 p = glm::vec3(dis(rng) * 5.0, dis(rng) * 5.0f, dis(rng) * 5.0f); // these scales are hard coded for the helix mesh
 
         // Check if the point lies within at least one of the brush locations, assuming spheres for now (TODO: more brush types / cylinders?)
         bool contained = false;

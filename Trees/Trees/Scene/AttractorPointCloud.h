@@ -49,7 +49,7 @@ public:
     glm::vec3& GetMaxPoint() { return maxPoint; }
     void GeneratePointsInUnitCube(unsigned int numPoints);
     void GeneratePoints(unsigned int numPoints);
-    void GeneratePoints(unsigned int numPoints, const std::vector<glm::vec3>& sketchPoints, const float brushRadius);
+    void GeneratePointsGivenSketchPoints(unsigned int numPoints, const std::vector<glm::vec3>& sketchPoints, const float brushRadius);
     void AddPoints(const std::vector<AttractorPoint>& p) { points.insert(points.begin(), p.begin(), p.end()); }
     static AttractorPointCloud UnionAttractorPointClouds(const AttractorPointCloud& ap1, const AttractorPointCloud& ap2) {
         AttractorPointCloud unionCloud;

@@ -36,6 +36,9 @@
 
 #define INITIAL_NUM_ATTR_PTS 500000
 
+// Tree sketching
+#define INITIAL_BRUSH_RADIUS 0.1f//0.025f
+
 /// Definition of structures
 
 struct TreeParameters {
@@ -50,6 +53,7 @@ struct TreeParameters {
     float minimumBranchRadius;
     float pipeModelExponent;
     float maximumBranchRadius;
+    float brushRadius;
     int numSpaceColonizationIterations;
     int numAttractorPointsToGenerate;
     bool enableDebugOutput;
@@ -57,11 +61,10 @@ struct TreeParameters {
     bool resetAttractorPointState;
 
     TreeParameters() :
-        internodeScale(INITIAL_INTERNODE_SCALE), perceptionCosTheta(COS_THETA),
-        perceptionCosThetaSmall(COS_THETA_SMALL), BHAlpha(ALPHA), BHLambda(LAMBDA), optimalGrowthDirWeight(OPTIMAL_GROWTH_DIR_WEIGHT), tropismDirWeight(TROPISM_DIR_WEIGHT),
-        tropismVector(TROPISM_DIR_WEIGHT), minimumBranchRadius(MINIMUM_BRANCH_RADIUS), pipeModelExponent(PIPE_EXPONENT), maximumBranchRadius(MAXIMUM_BRANCH_RADIUS),
-        numSpaceColonizationIterations(INITIAL_NUM_ITERATIONS), numAttractorPointsToGenerate(INITIAL_NUM_ATTR_PTS), enableDebugOutput(true), reconstructUniformGridOnGPU(true),
-        resetAttractorPointState(true) {}
+        internodeScale(INITIAL_INTERNODE_SCALE), perceptionCosTheta(COS_THETA), perceptionCosThetaSmall(COS_THETA_SMALL), BHAlpha(ALPHA), BHLambda(LAMBDA),
+        optimalGrowthDirWeight(OPTIMAL_GROWTH_DIR_WEIGHT), tropismDirWeight(TROPISM_DIR_WEIGHT), tropismVector(TROPISM_DIR_WEIGHT), minimumBranchRadius(MINIMUM_BRANCH_RADIUS),
+        pipeModelExponent(PIPE_EXPONENT), maximumBranchRadius(MAXIMUM_BRANCH_RADIUS), brushRadius(INITIAL_BRUSH_RADIUS), numSpaceColonizationIterations(INITIAL_NUM_ITERATIONS),
+        numAttractorPointsToGenerate(INITIAL_NUM_ATTR_PTS), enableDebugOutput(true), reconstructUniformGridOnGPU(true), resetAttractorPointState(true) {}
 };
 
 enum BUD_FATE {
@@ -148,6 +151,7 @@ private:
     glm::vec3 leafColor;
 
 public:
+    friend class TreeApplication;
     Tree() : Tree(glm::vec3(0.0f)) {}
     Tree(const glm::vec3& p) : didUpdate(false), hasBeenCreated(false), branchColor(glm::vec3(0.467f, 0.41f, 0.25f)), leafColor(glm::vec3(0.2f, 0.4f, 0.2f)) {
         branches = std::vector<TreeBranch>();

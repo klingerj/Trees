@@ -21,7 +21,7 @@ void UIManager::HandleInput(TreeApplication& treeApp) {
     ImGui::SliderFloat("Minimum Branch Radius", &treeApp.GetTreeParameters().minimumBranchRadius, 0.0f, 100.0f);
     ImGui::SliderFloat("Maximum Branch Radius", &treeApp.GetTreeParameters().maximumBranchRadius, 0.0f, 100.0f);
     ImGui::SliderInt("Num Space Col Iterations", &treeApp.GetTreeParameters().numSpaceColonizationIterations, 0, 10000);
-    ImGui::SliderInt("Num Attr Pts to Gen", &treeApp.GetTreeParameters().numAttractorPointsToGenerate, 0, 2000000);
+    ImGui::SliderInt("Num Attr Pts to Gen", &treeApp.GetTreeParameters().numAttractorPointsToGenerate, 0, 5000000);
     //ImGui::Checkbox("Enable Debug Output", &treeApp.GetTreeParameters().enableDebugOutput);
     if (ImGui::Button("Iterate Tree")) {
         treeApp.IterateSelectedTreeInSelectedAttractorPointCloud();

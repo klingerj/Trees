@@ -18,16 +18,19 @@
 #include <chrono>
 #include <ctime>
 
-Camera camera = Camera(glm::vec3(0.0f, 1.63f, 0.0f), 0.7853981634f, // 45 degrees vs 75 degrees
-(float)VIEWPORT_WIDTH_INITIAL / VIEWPORT_HEIGHT_INITIAL, 0.01f, 2000.0f, 0.0f, -31.74f, 5.4f);
+Camera camera = Camera(glm::vec3(0.0f, 0.0f, 0.0f), 0.7853981634f, // 45 degrees vs 75 degrees
+(float)VIEWPORT_WIDTH_INITIAL / VIEWPORT_HEIGHT_INITIAL, 0.01f, 2000.0f, 0.0f, -31.74f, 5.4f, VIEWPORT_HEIGHT_INITIAL, VIEWPORT_WIDTH_INITIAL);
 const float camMoveSensitivity = 0.03f;
 
 bool enableSketchMode = false;
 bool isSketching = false;
+bool clearSketchPoints = false;
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     glViewport(0, 0, width, height);
     camera.SetAspect((float)width / height);
+    camera.SetViewportHeight(height);
+    camera.SetViewportWidth(width);
 }
 
 // Mouse click
@@ -39,13 +42,15 @@ void mouse_click_callback(GLFWwindow* window, int button, int action, int mods) 
         //std::cout << "Mouse down-click at (" << xpos << ", " << ypos << ")" << std::endl;
         if (enableSketchMode && !isSketching) {
             isSketching = true;
+            clearSketchPoints = false;
         }
         isSketching = enableSketchMode;
     } else if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE) {
         enableSketchMode = false;
         isSketching = false;
+        clearSketchPoints = true;
     }
-    std::cout << "isSketching: " << isSketching << ", enableSketchMode: " << enableSketchMode << std::endl;
+    //std::cout << "isSketching: " << isSketching << ", enableSketchMode: " << enableSketchMode << std::endl;
 }
 
 // Keyboard controls
@@ -71,7 +76,7 @@ void processInput(GLFWwindow *window) {
     } else if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL)) {
         if (!enableSketchMode && !isSketching) {
             enableSketchMode = true;
-            std::cout << "isSketching: " << isSketching << ", enableSketchMode: " << enableSketchMode << std::endl;
+            //std::cout << "isSketching: " << isSketching << ", enableSketchMode: " << enableSketchMode << std::endl;
         }
     }
 }
@@ -140,8 +145,30 @@ int main() {
         double cursor_xpos, cursor_ypos;
         glfwGetCursorPos(window, &cursor_xpos, &cursor_ypos);
         if (enableSketchMode && isSketching) {
-            std::cout << "Cursor Position at (" << cursor_xpos << ", " << cursor_ypos << ")" << std::endl;
+            //std::cout << "Cursor Position at (" << cursor_xpos << ", " << cursor_ypos << ")" << std::endl;
+            std::vector<glm::vec3>& treeAppSketchPoints = treeApp.GetSketchPoints();
+            const glm::vec3 currentSketchPoint = glm::vec3((glm::vec2(cursor_xpos, camera.GetViewportHeight() - cursor_ypos) - 0.5f * glm::vec2(camera.GetViewportWidth(), camera.GetViewportHeight())) / (float)(camera.GetViewportHeight()), 0.0f);
+            if (treeAppSketchPoints.size() > 0) {
+                if (glm::length(currentSketchPoint - treeAppSketchPoints[treeAppSketchPoints.size() - 1]) > treeApp.GetTreeParametersConst().brushRadius * 0.15f) {
+                    treeAppSketchPoints.emplace_back(currentSketchPoint);
+                }
+            } else {
+                treeAppSketchPoints.emplace_back(currentSketchPoint);
+            }
         }
+
+        if (treeApp.GetSketchPointsConst().size() > 0 && clearSketchPoints) {
+            treeApp.ComputeWorldSpaceSketchPoints(camera);
+            treeApp.GenerateSketchAttractorPointCloud();
+            treeApp.ClearSketchPoints();
+            clearSketchPoints = false;
+        }
+
+        // print sketch points to see stuff work kinda
+        /*for (int i = 0; i < treeApp.GetSketchPointsConst().size(); ++i) {
+            std::cout << "SketchPoints[" << i << "]: " << treeApp.GetSketchPointsConst()[i].x << ", " << 
+                treeApp.GetSketchPointsConst()[i].y << ", " << treeApp.GetSketchPointsConst()[i].z << std::endl;
+        }*/
 
         glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
