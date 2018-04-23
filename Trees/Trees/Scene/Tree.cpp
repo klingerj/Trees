@@ -465,8 +465,8 @@ void Tree::RemoveAttractorPoints(std::vector<AttractorPoint>& attractorPoints) {
 
 void Tree::create() {
     // Flush currently stored mesh
-    treeMesh = Mesh();
-    leavesMesh = Mesh();
+    treeMesh.clearData();
+    leavesMesh.clearData();
 
     // Vectors containing branch geometry - many transformed versions of branchMesh all unioned together
     std::vector<glm::vec3> branchPoints = std::vector<glm::vec3>();

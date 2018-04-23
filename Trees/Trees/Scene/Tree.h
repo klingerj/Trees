@@ -158,8 +158,10 @@ public:
         InitializeTree(p);
         branchMesh = Mesh();
         leafMesh = Mesh();
-        branchMesh.LoadFromFile("OBJs/cylinderBranch.obj");
+        branchMesh.LoadFromFile("OBJs/cylinderBranchLowPoly.obj");
         leafMesh.LoadFromFile("OBJs/leaf.obj");
+        treeMesh.SetName("tree_mesh");
+        leavesMesh.SetName("leaves_mesh");
     }
     void ResetTree() {
         didUpdate = false;
@@ -199,6 +201,10 @@ public:
     // Mesh handling
     void LoadBranchMesh(const char* filepath) { branchMesh.LoadFromFile(filepath); }
     void LoadLeafMesh  (const char* filepath) { leafMesh.LoadFromFile(filepath);   }
+    void ExportAsObj() const {
+        treeMesh.ExportToFile();
+        leavesMesh.ExportToFile();
+    }
     Mesh& GetTreeMesh() { return treeMesh; }
     Mesh& GetLeavesMesh() { return leavesMesh; }
     void create(); // Assembles a mesh unioning all branches and a mesh unioning all leaves. Calls create() on each.

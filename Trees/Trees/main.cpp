@@ -73,7 +73,7 @@ void processInput(GLFWwindow *window) {
         camera.TranslateRefAlongWorldY(-camMoveSensitivity);
     } else if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) {
         camera.TranslateRefAlongWorldY(camMoveSensitivity);
-    } else if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL)) {
+    } else if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT)) {
         if (!enableSketchMode && !isSketching) {
             enableSketchMode = true;
             //std::cout << "isSketching: " << isSketching << ", enableSketchMode: " << enableSketchMode << std::endl;

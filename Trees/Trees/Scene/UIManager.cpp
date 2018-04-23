@@ -37,4 +37,7 @@ void UIManager::HandleInput(TreeApplication& treeApp) {
     if (ImGui::Button("Show/Hide Current Attr Pt Cloud")) {
         treeApp.GetSelectedAttractorPointCloud().ToggleDisplay();
     }
+    if (ImGui::Button("Export Current Tree as OBJ")) {
+        treeApp.ExportTreeAsObj();
+    }
 }

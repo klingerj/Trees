@@ -75,6 +75,8 @@ public:
     TreeParameters& GetTreeParameters() { return treeParameters; }
     const TreeParameters& GetTreeParametersConst() const { return treeParameters; }
 
+    void ExportTreeAsObj() const { GetSelectedTreeConst().ExportAsObj(); }
+
     // Functions for drawing the scene
     void DrawAttractorPointClouds(ShaderProgram& sp) {
         for (unsigned int ap = 0; ap < (unsigned int)sceneAttractorPointClouds.size(); ++ap) {

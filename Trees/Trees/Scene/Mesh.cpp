@@ -4,9 +4,14 @@
 #include "tiny_obj_loader.h"
 
 #include <iostream>
+#include <fstream>
 
 // Implementation based on example usage here: https://github.com/syoyo/tinyobjloader
 void Mesh::LoadFromFile(const char* filepath) {
+    filename = std::string(filepath, 0, 100); // max 100 characters for internal file name
+    filename = filename.substr(5, filename.size()); // trim the "OBJs/"
+    std::cout << filename << std::endl;
+
     tinyobj::attrib_t attrib;
     std::vector<tinyobj::shape_t> shapes;
     std::vector<tinyobj::material_t> materials;
@@ -54,6 +59,44 @@ void Mesh::LoadFromFile(const char* filepath) {
     return;
 }
 
+void Mesh::ExportToFile() const {
+    std::ofstream outputFile;
+    std::string outputFileName = "output_" + filename + ".obj";
+    outputFile.open(outputFileName);
+    for (unsigned int i = 0; i < (unsigned int)positions.size(); ++i) {
+        outputFile << "v ";
+        outputFile << positions[i].x << " ";
+        outputFile << positions[i].y << " ";
+        outputFile << positions[i].z << "\n";
+    }
+    for (unsigned int i = 0; i < (unsigned int)positions.size(); ++i) {
+        outputFile << "vt ";
+        outputFile << 0.00000 << " ";
+        outputFile << 0.00000 << "\n";
+    }
+    for (unsigned int i = 0; i < (unsigned int)normals.size(); ++i) {
+        outputFile << "vn ";
+        outputFile << normals[i].x << " ";
+        outputFile << normals[i].y << " ";
+        outputFile << normals[i].z << "\n";
+    }
+    for (unsigned int i = 0; i < (unsigned int)indices.size(); i += 3) {
+        outputFile << "f ";
+        outputFile << (indices[i] + 1) << "/";
+        outputFile << (indices[i] + 1) << "/";
+        outputFile << (indices[i] + 1) << "/ ";
+
+        outputFile << (indices[i] + 2) << "/";
+        outputFile << (indices[i] + 2) << "/";
+        outputFile << (indices[i] + 2) << "/ ";
+
+        outputFile << (indices[i] + 3) << "/";
+        outputFile << (indices[i] + 3) << "/";
+        outputFile << (indices[i] + 3) << "/\n";
+    }
+    outputFile.close();
+}
+
 // TODO: implement better tri intersection?
 Intersection Triangle::Intersect(const Ray& r) const {
 
@@ -66,13 +109,13 @@ Intersection Triangle::Intersect(const Ray& r) const {
     const glm::vec3 P = r.GetOrigin() + t * r.GetDirection();
 
     // 2. Barycentric test
-    const float S = 1.0f / (0.5f * glm::length(glm::cross(points[0] - points[1], points[0] - points[2])));
-    const float S1 = 0.5f * glm::length(glm::cross(P - points[1], P - points[2]));
-    const float S2 = 0.5f * glm::length(glm::cross(P - points[2], P - points[0]));
-    const float S3 = 0.5f * glm::length(glm::cross(P - points[0], P - points[1]));
-    const float sum = (S1 + S2 + S3) * S;
+    const double S = 1.0 / (0.5 * glm::length(glm::cross(points[0] - points[1], points[0] - points[2])));
+    const double S1 = 0.5 * glm::length(glm::cross(P - points[1], P - points[2]));
+    const double S2 = 0.5 * glm::length(glm::cross(P - points[2], P - points[0]));
+    const double S3 = 0.5 * glm::length(glm::cross(P - points[0], P - points[1]));
+    const double sum = (S1 + S2 + S3) * S;
 
-    if ((S1 >= 0.0f && S1 <= 1.0f) && (S2 >= 0.0f && S2 <= 1.0f) && (S3 >= 0.0f && S3 <= 1.0f) && std::fabsf(sum - 1.0f) < EPSILON) {
+    if ((S1 > 0.0 && S1 < 1.0) && (S2 > 0.0 && S2 < 1.0) && (S3 > 0.0 && S3 < 1.0) && std::abs(sum - 1.0) < 0.000001) {
         return Intersection(P, planeNormal, t);
     }
     return Intersection();
@@ -90,7 +133,7 @@ Intersection Mesh::Intersect(const Ray& r) const {
 }
 
 bool Mesh::Contains(const glm::vec3 & p) const {
-    Ray r = Ray(p, glm::vec3(1.0f, 0.0f, 0.0f)); // Ray direction is arbitrary. It can be anything
+    Ray r = Ray(p, glm::vec3(0.0f, 0.0f, 1.0f)); // Ray direction is arbitrary. It can be anything
     Intersection isect = Intersect(r);
     unsigned int isectCounter = 0;
     while (isect.IsValid()) {
