@@ -36,6 +36,9 @@
 
 #define INITIAL_NUM_ATTR_PTS 500000
 
+// Tree sketching
+#define INITIAL_BRUSH_RADIUS 0.1f//0.025f
+
 /// Definition of structures
 
 struct TreeParameters {
@@ -50,15 +53,18 @@ struct TreeParameters {
     float minimumBranchRadius;
     float pipeModelExponent;
     float maximumBranchRadius;
+    float brushRadius;
     int numSpaceColonizationIterations;
     int numAttractorPointsToGenerate;
     bool enableDebugOutput;
+    bool reconstructUniformGridOnGPU;
+    bool resetAttractorPointState;
 
     TreeParameters() :
-        internodeScale(INITIAL_INTERNODE_SCALE), perceptionCosTheta(COS_THETA),
-        perceptionCosThetaSmall(COS_THETA_SMALL), BHAlpha(ALPHA), BHLambda(LAMBDA), optimalGrowthDirWeight(OPTIMAL_GROWTH_DIR_WEIGHT), tropismDirWeight(TROPISM_DIR_WEIGHT),
-        tropismVector(TROPISM_DIR_WEIGHT), minimumBranchRadius(MINIMUM_BRANCH_RADIUS), pipeModelExponent(PIPE_EXPONENT), maximumBranchRadius(MAXIMUM_BRANCH_RADIUS),
-        numSpaceColonizationIterations(INITIAL_NUM_ITERATIONS), numAttractorPointsToGenerate(INITIAL_NUM_ATTR_PTS), enableDebugOutput(true) {}
+        internodeScale(INITIAL_INTERNODE_SCALE), perceptionCosTheta(COS_THETA), perceptionCosThetaSmall(COS_THETA_SMALL), BHAlpha(ALPHA), BHLambda(LAMBDA),
+        optimalGrowthDirWeight(OPTIMAL_GROWTH_DIR_WEIGHT), tropismDirWeight(TROPISM_DIR_WEIGHT), tropismVector(TROPISM_DIR_WEIGHT), minimumBranchRadius(MINIMUM_BRANCH_RADIUS),
+        pipeModelExponent(PIPE_EXPONENT), maximumBranchRadius(MAXIMUM_BRANCH_RADIUS), brushRadius(INITIAL_BRUSH_RADIUS), numSpaceColonizationIterations(INITIAL_NUM_ITERATIONS),
+        numAttractorPointsToGenerate(INITIAL_NUM_ATTR_PTS), enableDebugOutput(true), reconstructUniformGridOnGPU(true), resetAttractorPointState(true) {}
 };
 
 enum BUD_FATE {
@@ -145,14 +151,17 @@ private:
     glm::vec3 leafColor;
 
 public:
+    friend class TreeApplication;
     Tree() : Tree(glm::vec3(0.0f)) {}
     Tree(const glm::vec3& p) : didUpdate(false), hasBeenCreated(false), branchColor(glm::vec3(0.467f, 0.41f, 0.25f)), leafColor(glm::vec3(0.2f, 0.4f, 0.2f)) {
         branches = std::vector<TreeBranch>();
         InitializeTree(p);
         branchMesh = Mesh();
         leafMesh = Mesh();
-        branchMesh.LoadFromFile("OBJs/cylinderBranch.obj");
+        branchMesh.LoadFromFile("OBJs/cylinderBranchLowPoly.obj");
         leafMesh.LoadFromFile("OBJs/leaf.obj");
+        treeMesh.SetName("tree_mesh");
+        leavesMesh.SetName("leaves_mesh");
     }
     void ResetTree() {
         didUpdate = false;
@@ -171,10 +180,10 @@ public:
 
     // Tree Growth Functions (grouped by association)
     const std::vector<TreeBranch>& GetBranches() const { return branches; }
-    void IterateGrowth(std::vector<AttractorPoint>& attractorPoints, const TreeParameters& treeParams, bool useGPU = false);
-    void PerformSpaceColonization(std::vector<AttractorPoint>& attractorPoints, bool useGPU);
+    void IterateGrowth(std::vector<AttractorPoint>& attractorPoints, glm::vec3& minAttrPt, glm::vec3& maxAttrPt, TreeParameters& treeParams, bool useGPU = false);
+    void PerformSpaceColonization(std::vector<AttractorPoint>& attractorPoints, glm::vec3& minAttrPt, glm::vec3& maxAttrPt, bool& reconstructUniformGrid, bool& resetAttrPtState, bool useGPU);
     void PerformSpaceColonizationCPU(std::vector<AttractorPoint>& attractorPoints);
-    void PerformSpaceColonizationGPU(std::vector<AttractorPoint>& attractorPoints);
+    void PerformSpaceColonizationGPU(std::vector<AttractorPoint>& attractorPoints, glm::vec3& minAttrPt, glm::vec3& maxAttrPt, bool& reconstructUniformGrid, bool& resetAttrPtState);
     void RemoveAttractorPoints(std::vector<AttractorPoint>& attractorPoints);
 
     float ComputeQAccumRecursive(TreeBranch& branch);
@@ -187,11 +196,15 @@ public:
     float ComputeBranchRadiiRecursive(TreeBranch& branch, const TreeParameters& treeParams);
     void ComputeBranchRadii(const TreeParameters& treeParams);
 
-    void ResetState(std::vector<AttractorPoint>& attractorPoints); // Reset the state of each bud in the tree during the iterative algorithm
+    void ResetState(std::vector<AttractorPoint>& attractorPoints, bool useGPU); // Reset the state of each bud in the tree during the iterative algorithm
 
     // Mesh handling
     void LoadBranchMesh(const char* filepath) { branchMesh.LoadFromFile(filepath); }
     void LoadLeafMesh  (const char* filepath) { leafMesh.LoadFromFile(filepath);   }
+    void ExportAsObj() const {
+        treeMesh.ExportToFile();
+        leavesMesh.ExportToFile();
+    }
     Mesh& GetTreeMesh() { return treeMesh; }
     Mesh& GetLeavesMesh() { return leavesMesh; }
     void create(); // Assembles a mesh unioning all branches and a mesh unioning all leaves. Calls create() on each.

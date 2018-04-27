@@ -110,6 +110,7 @@
     </Link>
     <CudaCompile>
       <CodeGeneration>compute_61,sm_61</CodeGeneration>
+      <TargetMachinePlatform>64</TargetMachinePlatform>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -146,6 +147,7 @@
     </Link>
     <CudaCompile>
       <CodeGeneration>compute_61,sm_61</CodeGeneration>
+      <TargetMachinePlatform>64</TargetMachinePlatform>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>

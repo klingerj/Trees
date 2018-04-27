@@ -2,6 +2,7 @@
 
 #include <vector>
 #include "glm/glm.hpp"
+#include "glm/gtx/norm.hpp"
 #include "pcg_random.hpp"
 #include <chrono>
 #include <ctime>
@@ -15,20 +16,25 @@ struct AttractorPoint {
     float nearestBudDist2; // how close the nearest bud is that has this point in its perception volume, squared
     int nearestBudBranchIdx; // index in the array of the branch of that bud ^^
     int nearestBudIdx; // index in the array of the bud of that branch ^^
+    bool removed;
 
-    AttractorPoint(const glm::vec3& p) : point(p), nearestBudDist2(9999999.0f), nearestBudBranchIdx(-1), nearestBudIdx(-1) {}
+    AttractorPoint() : AttractorPoint(glm::vec3(0.0f)) {}
+    AttractorPoint(const glm::vec3& p) : point(p), nearestBudDist2(9999999.0f), nearestBudBranchIdx(-1), nearestBudIdx(-1), removed(false) {}
 };
 
 class AttractorPointCloud : public Drawable {
 protected:
-    std::vector<AttractorPoint> points;
+    
 private:
+    std::vector<AttractorPoint> points;
+    glm::vec3 minPoint;
+    glm::vec3 maxPoint;
     pcg32 rng;
     std::uniform_real_distribution<float> dis;
     Mesh boundingMesh;
     bool shouldDisplay;
 public:
-    AttractorPointCloud() : shouldDisplay(true) {
+    AttractorPointCloud() : shouldDisplay(true), minPoint(glm::vec3(999999.0f)), maxPoint(glm::vec3(-999999.0f)) {
         points = std::vector<AttractorPoint>();
         rng(101); // Any seed
         dis = std::uniform_real_distribution<float>(-1.0f, 1.0f);
@@ -36,13 +42,15 @@ public:
     }
     bool ShouldDisplay() const { return shouldDisplay && points.size() > 0; }
     void ToggleDisplay() { shouldDisplay = !shouldDisplay; }
-    const std::vector<AttractorPoint>& GetPoints() { return points; }
-    std::vector<AttractorPoint> GetPointsCopy() { return points; }
+    const std::vector<AttractorPoint>& GetPointsConst() const { return points; }
+    std::vector<AttractorPoint>& GetPoints() { return points; }
+    std::vector<AttractorPoint> GetPointsCopy() const { return points; }
+    glm::vec3& GetMinPoint() { return minPoint; }
+    glm::vec3& GetMaxPoint() { return maxPoint; }
     void GeneratePointsInUnitCube(unsigned int numPoints);
     void GeneratePoints(unsigned int numPoints);
-    void AddPoints(const std::vector<AttractorPoint>& p) {
-        points.insert(points.begin(), p.begin(), p.end());
-    }
+    void GeneratePointsGivenSketchPoints(unsigned int numPoints, const std::vector<glm::vec3>& sketchPoints, const float brushRadius);
+    void AddPoints(const std::vector<AttractorPoint>& p) { points.insert(points.begin(), p.begin(), p.end()); }
     static AttractorPointCloud UnionAttractorPointClouds(const AttractorPointCloud& ap1, const AttractorPointCloud& ap2) {
         AttractorPointCloud unionCloud;
         unionCloud.AddPoints(ap1.points);

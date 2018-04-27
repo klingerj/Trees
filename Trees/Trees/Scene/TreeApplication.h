@@ -4,12 +4,14 @@
 #include "../OpenGL/ShaderProgram.h"
 #include "Tree.h"
 #include "AttractorPointCloud.h"
+#include "Camera.h"
 
 class TreeApplication {
 private:
     TreeParameters treeParameters;
-    std::vector<Tree> sceneTrees;
-    std::vector<AttractorPointCloud> sceneAttractorPointClouds;
+    std::vector<Tree> sceneTrees; // trees in the scene
+    std::vector<AttractorPointCloud> sceneAttractorPointClouds; // attractor point clouds in the scene
+    std::vector<glm::vec3> currentSketchPoints; // the sketch points in screen space of the current sketch stroke
 
     // App management variables
     int currentlySelectedTreeIndex;
@@ -33,7 +35,7 @@ public:
         }
     }
 
-    // Scene Edition Functions
+    // Scene Editing Functions
     void AddTreeToScene() {
         sceneTrees.emplace_back(Tree());
         currentlySelectedTreeIndex = (int)(sceneTrees.size()) - 1;
@@ -61,13 +63,19 @@ public:
         }
         return Tree(); // a bad temporary tree!
     }
+    const std::vector<glm::vec3>& GetSketchPointsConst() const { return currentSketchPoints; }
+    std::vector<glm::vec3>& GetSketchPoints() { return currentSketchPoints; }
+    void ClearSketchPoints() { currentSketchPoints.clear(); }
 
     void IterateSelectedTreeInSelectedAttractorPointCloud();
     void RegrowSelectedTreeInSelectedAttractorPointCloud();
-
+    void ComputeWorldSpaceSketchPoints(const Camera& camera);
+    void GenerateSketchAttractorPointCloud();
 
     TreeParameters& GetTreeParameters() { return treeParameters; }
     const TreeParameters& GetTreeParametersConst() const { return treeParameters; }
+
+    void ExportTreeAsObj() const { GetSelectedTreeConst().ExportAsObj(); }
 
     // Functions for drawing the scene
     void DrawAttractorPointClouds(ShaderProgram& sp) {

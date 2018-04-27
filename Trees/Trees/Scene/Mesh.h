@@ -30,6 +30,8 @@ public:
 // TODO: refactor, remove the excess storage of vertices/indices
 // TODO: currently assumes a triangulated mesh. No triangulation occurs here right now.
 class Mesh : public Drawable {
+protected:
+    std::string filename;
 private:
     // Lists of vertices and indices
     std::vector<Triangle> triangles;
@@ -38,7 +40,7 @@ private:
     std::vector<glm::vec3> normals;
     std::vector<unsigned int> indices;
 public:
-    Mesh() {
+    Mesh() : filename("") {
         triangles = std::vector<Triangle>();
         vertices = std::vector<Vertex>();
         positions = std::vector<glm::vec3>();
@@ -46,6 +48,16 @@ public:
         indices = std::vector<unsigned int>();
     }
     void LoadFromFile(const char* filepath);
+    void ExportToFile() const;
+    void SetName(const char* name) { filename = std::string(name, 0, 100); }
+
+    void clearData() {
+        triangles.clear();
+        vertices.clear();
+        positions.clear();
+        normals.clear();
+        indices.clear();
+    }
 
     // Getters
     const std::vector<Triangle>&     GetTriangles() const { return triangles; }
