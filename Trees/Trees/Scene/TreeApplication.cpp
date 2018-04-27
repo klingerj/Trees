@@ -54,22 +54,41 @@ void TreeApplication::RegrowSelectedTreeInSelectedAttractorPointCloud() {
 void TreeApplication::ComputeWorldSpaceSketchPoints(const Camera& camera) {
     const glm::mat4 viewMat = camera.GetView();
     const glm::mat4 invViewMat = glm::inverse(viewMat);
-    const glm::mat4 invProjMat = glm::inverse(camera.GetProj());
+    const glm::mat4 projMat = camera.GetProj();
+    const glm::mat4 invProjMat = glm::inverse(projMat);
+    const glm::mat4 viewProjMat = camera.GetViewProj();
+    const glm::mat4 invViewProjMat = glm::inverse(viewProjMat);
 
     const glm::vec3& rootBudPoint = sceneTrees[currentlySelectedTreeIndex].branches[0].GetBuds()[0].point;
-    const glm::vec3 budPointView = (viewMat * glm::vec4(rootBudPoint, 1.0f));
+    glm::vec4 budPointProj = viewProjMat * glm::vec4(rootBudPoint, 1.0f);
+    budPointProj /= budPointProj.w;
+    //const glm::vec3 budPointView = (viewMat * glm::vec4(rootBudPoint, 1.0f));
     const float tanFovy = std::tan(camera.GetFovy() * 0.5f);
     const float len = glm::length(rootBudPoint - camera.GetEye());
-    const glm::vec3 refPoint = rootBudPoint;//glm::vec3(camera.GetEye() + glm::vec3(viewMat[2]));
+    //const glm::vec3 refPoint = budPointView;//glm::vec3(camera.GetEye() + glm::vec3(viewMat[2]));
 
     for (unsigned int sp = 0; sp < (unsigned int)currentSketchPoints.size(); ++sp) {
         glm::vec3& currentSketchPoint = currentSketchPoints[sp];
         // do math similar to raycasting - want the position position in the frustum using len = |viewSpaceBudPoint - eye|
-        const glm::vec3 V = tanFovy * len * glm::vec3(viewMat[1]);
-        const glm::vec3 H = tanFovy * len * camera.GetAspect() * glm::vec3(viewMat[0]);
-        //currentSketchPoint = glm::vec3(invViewMat * glm::vec4(currentSketchPoint, 1.0f));
-        currentSketchPoint = refPoint + V * currentSketchPoint.y + H * currentSketchPoint.x;
 
+        // try #2
+        /*const glm::vec3 V = tanFovy * len * glm::vec3(viewMat[1]);
+        const glm::vec3 H = tanFovy * len * camera.GetAspect() * glm::vec3(viewMat[0]);
+        currentSketchPoint = refPoint + V * currentSketchPoint.y + H * currentSketchPoint.x;
+        currentSketchPoint = glm::vec3(invViewMat * glm::vec4(currentSketchPoint, 1.0f));*/
+
+        // Try #3
+        currentSketchPoint.z = budPointProj.z;
+        glm::vec4 sketchPointView = invViewProjMat * glm::vec4(currentSketchPoint, 1.0f); // TODO rename me, not in view space
+        sketchPointView /= sketchPointView.w;
+        currentSketchPoint = glm::vec3(sketchPointView);
+        //currentSketchPoint = glm::vec3(invProjMat * /*(camera.GetFarPlane() * */glm::vec4(currentSketchPoint, 1.0f));
+        // Currently in view space
+        //sketchPointView.z = budPointView.z;
+        //currentSketchPoint = glm::vec3(invViewMat * sketchPointView);
+
+
+        // Try #1
         /*currentSketchPoint = glm::vec3(invProjMat * glm::vec4(currentSketchPoint, 1.0f)); // From ndc to view space
         //currentSketchPoint.z = budViewZ; // set view space z value
         //currentSketchPoint = glm::vec3(invViewMat * glm::vec4(currentSketchPoint, 1.0f)); // view to world space*/

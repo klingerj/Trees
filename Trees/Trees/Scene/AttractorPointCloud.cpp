@@ -31,10 +31,10 @@ void AttractorPointCloud::GeneratePoints(unsigned int numPoints) {
     #endif
     boundingMesh.LoadFromFile("OBJs/helixRot.obj");
     for (unsigned int i = 0; i < numPoints; ++i) {
-        const glm::vec3 p = glm::vec3(dis(rng) * 1.0f - 1.0f, dis(rng) * 0.98f, dis(rng) * 2.0f + 2.0f); // these scales are hard coded for the helixRot mesh
+        const glm::vec3 p = glm::vec3(dis(rng) * 1.0f - 1.0f, dis(rng) * 3.0f, dis(rng) * 2.0f + 2.0f); // these scales are hard coded for the helixRot mesh
 
         // Intersect with mesh
-        if (boundingMesh.Contains(p)) {
+        if (boundingMesh.Contains(p)/*p.x * p.x + p.z * p.z < p.y * p.y*/) {
             minPoint.x = std::min(minPoint.x, p.x);
             minPoint.y = std::min(minPoint.y, p.y);
             minPoint.z = std::min(minPoint.z, p.z);
@@ -59,6 +59,7 @@ void AttractorPointCloud::GeneratePointsGivenSketchPoints(unsigned int numPoints
     #ifdef ENABLE_DEBUG_OUTPUT
     auto start = std::chrono::system_clock::now();
     #endif
+
     for (unsigned int i = 0; i < numPoints; ++i) {
         const glm::vec3 p = glm::vec3(dis(rng) * 5.0, dis(rng) * 5.0f, dis(rng) * 5.0f);
 
@@ -66,7 +67,7 @@ void AttractorPointCloud::GeneratePointsGivenSketchPoints(unsigned int numPoints
         bool contained = false;
 
         for (unsigned int sp = 0; sp < (unsigned int)sketchPoints.size(); ++sp) {
-            if ((glm::length2(p - sketchPoints[sp]) - brushRadius * brushRadius) < 0) { // if the point is inside the sphere
+            if (glm::length(p - sketchPoints[sp]) < brushRadius) { // if the point is inside the sphere
                 contained = true;
                 break;
             }
@@ -107,7 +108,11 @@ void AttractorPointCloud::create() {
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * indices.size(), indices.data(), GL_STATIC_DRAW);
 
     // Positions
+    std::vector<glm::vec3> actualPoints = std::vector <glm::vec3>();
+    for (int i = 0; i < points.size(); ++i) {
+        actualPoints.emplace_back(points[i].point);
+    }
     genBufPos();
     glBindBuffer(GL_ARRAY_BUFFER, bufPos);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * points.size(), points.data(), GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * actualPoints.size(), actualPoints.data(), GL_STATIC_DRAW);
 }

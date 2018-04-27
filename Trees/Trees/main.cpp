@@ -147,13 +147,17 @@ int main() {
         if (enableSketchMode && isSketching) {
             //std::cout << "Cursor Position at (" << cursor_xpos << ", " << cursor_ypos << ")" << std::endl;
             std::vector<glm::vec3>& treeAppSketchPoints = treeApp.GetSketchPoints();
-            const glm::vec3 currentSketchPoint = glm::vec3((glm::vec2(cursor_xpos, camera.GetViewportHeight() - cursor_ypos) - 0.5f * glm::vec2(camera.GetViewportWidth(), camera.GetViewportHeight())) / (float)(camera.GetViewportHeight()), 0.0f);
+            glm::vec2 currentSketchPoint = glm::vec2(cursor_xpos, cursor_ypos) / glm::vec2(camera.GetViewportWidth(), camera.GetViewportHeight());
+            currentSketchPoint.y = 1.0f - currentSketchPoint.y;
+            currentSketchPoint = 2.0f * currentSketchPoint - 1.0f;
+            //currentSketchPoint.x /= camera.GetAspect();
+            //const glm::vec3 currentSketchPoint = glm::vec3((2.0f * glm::vec2(cursor_xpos, camera.GetViewportHeight() - cursor_ypos) - glm::vec2(camera.GetViewportWidth(), camera.GetViewportHeight())) / (float)(camera.GetViewportHeight()), 1.0f);
             if (treeAppSketchPoints.size() > 0) {
-                if (glm::length(currentSketchPoint - treeAppSketchPoints[treeAppSketchPoints.size() - 1]) > treeApp.GetTreeParametersConst().brushRadius * 0.15f) {
-                    treeAppSketchPoints.emplace_back(currentSketchPoint);
+                if (glm::length(glm::vec3(currentSketchPoint, 0.0f) - treeAppSketchPoints[treeAppSketchPoints.size() - 1]) > treeApp.GetTreeParametersConst().brushRadius * 0.15f) {
+                    treeAppSketchPoints.emplace_back(glm::vec3(currentSketchPoint, 0.0f));
                 }
             } else {
-                treeAppSketchPoints.emplace_back(currentSketchPoint);
+                treeAppSketchPoints.emplace_back(glm::vec3(currentSketchPoint, 0.0f));
             }
         }
 
