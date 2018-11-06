@@ -2,6 +2,12 @@
 
 This project grows trees into clouds of attractor points to help model trees procedurally!
 
+Here are a few videos hosted on Vimeo that showcase some more examples:  
+[Tree growth](https://vimeo.com/299150076)  
+[Growing a tree into a 3D model of my friend's head](https://vimeo.com/299150458)  
+
+This is a sequence of images describing the algorithm:  
+
 First, we place attractor points within a bounding mesh. Here's a helix for example:
 ![](./Images/points.PNG)
 
